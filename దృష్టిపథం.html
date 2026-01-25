@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telugu Stotram Reader 2026</title>
+    <title>దృష్టిపథం</title>
+    <!-- Combined Font Imports -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=NTR&display=swap" rel="stylesheet">
-    <!-- NTR Font Import -->
-    <link href="https://fonts.googleapis.com" rel="stylesheet">
     <style>
         :root {
             --bg-color: #f4f7f6;
@@ -29,6 +28,13 @@
 
         /* Hides settings box when reading starts */
         body.reading-active .settings-container { display: none; }
+
+        /* Auto-hide Stop button during inactivity */
+        body.reading-active.idle #stopBtn {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
 
         .settings-container { 
             max-width: 950px; margin: 0 auto 20px auto; 
@@ -56,12 +62,12 @@
         #stopBtn { 
             background: #ea4335; color: white; display: none; 
             position: fixed; bottom: 20px; right: 20px; z-index: 1000;
+            transition: opacity 0.5s ease, visibility 0.5s;
         }
 
         .reading-area { max-width: 950px; margin: 0 auto; padding: 60px 0; }
         .line-wrapper { position: relative; margin-bottom: 60px; width: fit-content; }
         
-        /* Forces the live text to use NTR and the chosen variables */
         .text-line { 
             font-family: 'NTR', sans-serif !important;
             font-size: var(--font-size) !important;
@@ -80,30 +86,28 @@
         }
     </style>
 </head>
-<body>
+<body onmousemove="handleActivity()" ontouchstart="handleActivity()">
 
     <div class="settings-container">
-        <h2>Telugu Stotram Reader</h2>
-        <textarea id="textInput" placeholder="Paste Telugu text here...">ఓం నమశ్శివాయ కాంచన మణిమాల || 1 ||
-వందే శంభుముమాపతిం సురగురుం || 2 ||</textarea>
+        <h2>దృష్టిపథం</h2>
+        <textarea id="textInput" placeholder="Paste Telugu text here...">సరస్వతీ నమస్తుభ్యం వరదే కామరూపిణి |
+విద్యారంభం కరిష్యామి సిద్ధిర్భవతు మే సదా ||
+</textarea>
         
         <div class="controls">
             <button id="startBtn">Start Reading</button>
 
-            <!-- Font Size Control with Live Number -->
             <div class="option-group">
                 <span class="label-style">Font: <span id="fontVal" class="val-display">42</span></span>
                 <input type="range" id="fontSizeControl" min="20" max="100" value="42">
             </div>
 
-            <!-- Color Options -->
             <div class="option-group">
                 <input type="color" id="bgPicker" title="Background Color" value="#f4f7f6">
                 <input type="color" id="textPicker" title="Text Color" value="#111111">
                 <input type="color" id="cursorPicker" title="Cursor Color" value="#1a73e8">
             </div>
 
-            <!-- Speed Control with Live Number -->
             <div class="option-group">
                 <span class="label-style">Speed: <span id="speedVal" class="val-display">40</span></span>
                 <input type="range" id="speedControl" min="5" max="100" value="40">
@@ -116,6 +120,7 @@
 
 <script>
     const displayArea = document.getElementById('displayArea'), 
+          textInput = document.getElementById('textInput'),
           startBtn = document.getElementById('startBtn'), 
           stopBtn = document.getElementById('stopBtn'), 
           speedControl = document.getElementById('speedControl'), 
@@ -124,9 +129,8 @@
           speedVal = document.getElementById('speedVal'),
           root = document.documentElement;
 
-    let isReading = false, currentLineIdx = 0, animationFrame = null;
+    let isReading = false, currentLineIdx = 0, animationFrame = null, idleTimer = null;
 
-    // Live Value Updates for sliders
     fontSizeControl.oninput = (e) => {
         root.style.setProperty('--font-size', e.target.value + 'px');
         fontVal.textContent = e.target.value;
@@ -136,19 +140,40 @@
         speedVal.textContent = e.target.value;
     };
 
-    // Color Pickers
     document.getElementById('bgPicker').oninput = (e) => root.style.setProperty('--bg-color', e.target.value);
     document.getElementById('textPicker').oninput = (e) => root.style.setProperty('--text-color', e.target.value);
     document.getElementById('cursorPicker').oninput = (e) => root.style.setProperty('--cursor-color', e.target.value);
 
+    // Activity tracker for hiding UI
+    function handleActivity() {
+        if (!isReading) return;
+        document.body.classList.remove('idle');
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => { if (isReading) document.body.classList.add('idle'); }, 2500);
+    }
+
+    // Secure Text Processing using textContent (XSS Protection)
     function processText() {
-        const lines = document.getElementById('textInput').value.split('\n').filter(l => l.trim() !== "");
-        displayArea.innerHTML = lines.map((line, i) => `
-            <div class="line-wrapper" id="row-${i}">
-                <div class="text-line">${line}</div>
-                <div class="cursor-glide" id="cursor-${i}"></div>
-            </div>
-        `).join('');
+        const lines = textInput.value.split('\n').filter(l => l.trim() !== "");
+        displayArea.innerHTML = ""; // Clear
+        
+        lines.forEach((lineText, i) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'line-wrapper';
+            wrapper.id = `row-${i}`;
+            
+            const textLine = document.createElement('div');
+            textLine.className = 'text-line';
+            textLine.textContent = lineText; // Securely set text
+            
+            const cursor = document.createElement('div');
+            cursor.className = 'cursor-glide';
+            cursor.id = `cursor-${i}`;
+            
+            wrapper.appendChild(textLine);
+            wrapper.appendChild(cursor);
+            displayArea.appendChild(wrapper);
+        });
         return lines;
     }
 
@@ -184,17 +209,21 @@
     startBtn.onclick = () => {
         const lines = processText();
         if (lines.length === 0) return;
-        isReading = true; currentLineIdx = 0;
+        isReading = true; 
+        currentLineIdx = 0;
         document.body.classList.add('reading-active');
         stopBtn.style.display = 'block';
         animateLine(lines);
+        handleActivity();
     };
 
     function stopReading() {
-        isReading = false; cancelAnimationFrame(animationFrame);
-        document.body.classList.remove('reading-active');
+        isReading = false; 
+        cancelAnimationFrame(animationFrame);
+        document.body.classList.remove('reading-active', 'idle');
         stopBtn.style.display = 'none';
         displayArea.innerHTML = "";
+        clearTimeout(idleTimer);
     }
 </script>
 </body>
