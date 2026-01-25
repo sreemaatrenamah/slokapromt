@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="te">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telugu Stotram Reader 2026</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=NTR&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "NTR", sans-serif; background: #000; color: #fff; overflow: hidden; height: 100vh; display: flex; }
+
+        /* Left Sidebar - Hidden from Recording Area */
+        .sidebar {
+            width: 350px;
+            background: #1a1a1a;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #333;
+            z-index: 100;
+        }
+
+        h2 { color: #1a73e8; margin-bottom: 15px; font-size: 20px; }
+        
+        textarea { 
+            flex-grow: 1; 
+            width: 100%; 
+            padding: 12px; 
+            background: #222; 
+            color: #ddd; 
+            border: 1px solid #444; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            resize: none; 
+            margin-bottom: 15px;
+        }
+
+        .controls { display: flex; flex-direction: column; gap: 15px; }
+        
+        button { 
+            padding: 15px; 
+            font-weight: 600; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 16px; 
+            width: 100%;
+        }
+        
+        #startBtn { background: #34a853; color: white; }
+        #stopBtn { background: #ea4335; color: white; }
+
+        .speed-box { 
+            background: #333; 
+            padding: 15px; 
+            border-radius: 8px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px;
+        }
+
+        /* Right Side - Recording Area (Prompter) */
+        .prompter-window {
+            flex-grow: 1;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+            background: #000; /* Black background for cleaner recording */
+        }
+
+        #scrollContent {
+            position: absolute;
+            top: 100%; /* Starts below the screen */
+            left: 0;
+            right: 0;
+            padding: 0 50px;
+            text-align: center;
+        }
+
+        .line {
+            font-size: 48px;
+            line-height: 1.8;
+            min-height: 1.8em; /* Maintains height for empty lines */
+            color: #ffffff;
+            margin-bottom: 10px;
+        }
+
+        /* Optional: Subtle gradient to hide text at top/bottom edges */
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none;
+            background: linear-gradient(to bottom, 
+                black 0%, transparent 15%, 
+                transparent 85%, black 100%);
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h2>Stotram Settings</h2>
+    <textarea id="textInput" placeholder="Paste Telugu text here...">
+ఓం నమశ్శివాయ కాంచన మణిమాల
+
+వందే శంభుముమాపతిం సురగురుం
+
+వందే జగత్కారణం ||</textarea>
+    
+    <div class="controls">
+        <div class="speed-box">
+            <label>Scroll Speed</label>
+            <input type="range" id="speedControl" min="1" max="20" value="5">
+        </div>
+        <button id="startBtn">Start Rolling</button>
+        <button id="stopBtn" style="display:none;">Stop / Reset</button>
+    </div>
+</div>
+
+<div class="prompter-window">
+    <div class="overlay"></div>
+    <div id="scrollContent"></div>
+</div>
+
+<script>
+    const textInput = document.getElementById('textInput');
+    const scrollContent = document.getElementById('scrollContent');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const speedControl = document.getElementById('speedControl');
+
+    let animationFrame = null;
+    let currentY = 0;
+    let isScrolling = false;
+
+    function initText() {
+        // Split by newline but keep empty strings to honor empty lines
+        const lines = textInput.value.split('\n');
+        scrollContent.innerHTML = lines.map(line => `
+            <div class="line">${line.trim() === "" ? "&nbsp;" : line}</div>
+        `).join('');
+        
+        // Reset position to bottom of screen
+        currentY = window.innerHeight;
+        scrollContent.style.top = currentY + 'px';
+    }
+
+    function step() {
+        if (!isScrolling) return;
+
+        const speed = parseFloat(speedControl.value) * 0.5; // Adjust multiplier for smoothness
+        currentY -= speed;
+        
+        scrollContent.style.top = currentY + 'px';
+
+        // Stop if the entire text has passed the top
+        if (currentY < -scrollContent.offsetHeight) {
+            stopScrolling();
+        } else {
+            animationFrame = requestAnimationFrame(step);
+        }
+    }
+
+    function startScrolling() {
+        initText();
+        isScrolling = true;
+        startBtn.style.display = 'none';
+        stopBtn.style.display = 'block';
+        animationFrame = requestAnimationFrame(step);
+    }
+
+    function stopScrolling() {
+        isScrolling = false;
+        cancelAnimationFrame(animationFrame);
+        startBtn.style.display = 'block';
+        stopBtn.style.display = 'none';
+    }
+
+    startBtn.addEventListener('click', startScrolling);
+    stopBtn.addEventListener('click', stopScrolling);
+</script>
+</body>
+</html>
