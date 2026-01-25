@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="te">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>దృష్టిపథం</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f4f7f6;
+            --text-color: #111111;
+            --cursor-color: #1a73e8;
+            --font-size: 42px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {  
+            font-family: 'NTR', sans-serif;  
+            background: var(--bg-color); 
+            color: var(--text-color); 
+            transition: background 0.3s ease;
+            min-height: 100vh;
+        }
+
+        .settings-container { 
+            width: 95%; max-width: 950px; 
+            margin: 10px auto; background: white; 
+            padding: 15px; border-radius: 12px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
+        }
+
+        body.reading-active .settings-container { display: none; }
+
+        body.reading-active.idle #stopBtn {
+            opacity: 0; visibility: hidden; pointer-events: none;
+        }
+
+        h2 { text-align: center; color: #1a73e8; margin-bottom: 10px; font-size: 1.5rem; }
+
+        textarea { 
+            width: 100%; min-height: 120px; padding: 12px; 
+            border: 2px solid #dfe1e5; border-radius: 8px; 
+            margin-bottom: 15px; font-size: 16px; line-height: 1.6; 
+            font-family: 'NTR', sans-serif; 
+        }
+
+        .controls { display: flex; flex-direction: column; gap: 12px; }
+
+        @media (min-width: 768px) {
+            .controls { flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
+        }
+
+        .option-group { 
+            display: flex; gap: 12px; background: #f9f9f9; 
+            padding: 10px 15px; border-radius: 8px; 
+            border: 1px solid #eee; align-items: center;
+            justify-content: space-between; flex-grow: 1;
+        }
+
+        .label-style { font-size: 12px; font-weight: bold; color: #666; text-transform: uppercase;}
+        .val-display { font-weight: bold; color: #1a73e8; min-width: 25px; display: inline-block; }
+
+        button { padding: 15px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; width: 100%; }
+        @media (min-width: 768px) { button { width: auto; } }
+
+        #startBtn { background: #34a853; color: white; }
+        
+        #stopBtn { 
+            background: #ea4335; color: white; display: none; 
+            position: fixed; bottom: 20px; right: 20px; z-index: 1000;
+            padding: 12px 20px; width: auto;
+            transition: opacity 0.5s ease, visibility 0.5s;
+        }
+
+        .reading-area { 
+            width: 90%; max-width: 950px; 
+            margin: 0 auto; padding: 40px 0; 
+        }
+
+        /* Essential for Mobile Wrapping */
+        .line-wrapper { 
+            position: relative; 
+            margin-bottom: 60px; 
+            width: 100%; 
+            display: block;
+        }
+        
+        .text-line { 
+            font-family: 'NTR', sans-serif !important;
+            font-size: var(--font-size) !important;
+            color: var(--text-color) !important;
+            line-height: 1.5; 
+            /* Forces text to wrap and fill width */
+            white-space: normal !important; 
+            word-wrap: break-word !important;
+            display: block !important; 
+            max-width: 100%;
+            position: relative; 
+            z-index: 2; 
+        }
+        
+        .cursor-glide {
+            position: absolute; 
+            bottom: -15px; 
+            left: 0;
+            height: 6px; 
+            width: 50px; 
+            background: var(--cursor-color);
+            border-radius: 3px; 
+            display: none;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body onmousemove="handleActivity()" ontouchstart="handleActivity()">
+
+    <div class="settings-container">
+        <h2>దృష్టిపథం</h2>
+        <textarea id="textInput" placeholder="Paste Telugu text here...">ఓం నమశ్శివాయ కాంచన మణిమాల || 1 ||
+వందే శంభుముమాపతిం సురగురుం || 2 ||</textarea>
+        
+        <div class="controls">
+            <button id="startBtn">Start Reading</button>
+
+            <div class="option-group">
+                <span class="label-style">Size: <span id="fontVal" class="val-display">42</span></span>
+                <input type="range" id="fontSizeControl" min="20" max="100" value="42" style="flex-grow:1; margin-left:10px;">
+            </div>
+
+            <div class="option-group" style="justify-content: center; gap: 20px;">
+                <div style="display:flex; align-items:center; gap:5px;"><input type="color" id="bgPicker" value="#f4f7f6"><span class="label-style">BG</span></div>
+                <div style="display:flex; align-items:center; gap:5px;"><input type="color" id="textPicker" value="#111111"><span class="label-style">Txt</span></div>
+                <div style="display:flex; align-items:center; gap:5px;"><input type="color" id="cursorPicker" value="#1a73e8"><span class="label-style">Cur</span></div>
+            </div>
+
+            <div class="option-group">
+                <span class="label-style">Speed: <span id="speedVal" class="val-display">40</span></span>
+                <input type="range" id="speedControl" min="5" max="100" value="40" style="flex-grow:1; margin-left:10px;">
+            </div>
+        </div>
+    </div>
+
+    <button id="stopBtn" onclick="stopReading()">Stop / Reset</button>
+    <div class="reading-area" id="displayArea"></div>
+
+<script>
+    const displayArea = document.getElementById('displayArea'), 
+          textInput = document.getElementById('textInput'),
+          startBtn = document.getElementById('startBtn'), 
+          stopBtn = document.getElementById('stopBtn'), 
+          speedControl = document.getElementById('speedControl'), 
+          fontSizeControl = document.getElementById('fontSizeControl'),
+          fontVal = document.getElementById('fontVal'),
+          speedVal = document.getElementById('speedVal'),
+          root = document.documentElement;
+
+    let isReading = false, currentLineIdx = 0, animationFrame = null, idleTimer = null;
+
+    fontSizeControl.oninput = (e) => {
+        root.style.setProperty('--font-size', e.target.value + 'px');
+        fontVal.textContent = e.target.value;
+    };
+    
+    speedControl.oninput = (e) => speedVal.textContent = e.target.value;
+
+    document.getElementById('bgPicker').oninput = (e) => root.style.setProperty('--bg-color', e.target.value);
+    document.getElementById('textPicker').oninput = (e) => root.style.setProperty('--text-color', e.target.value);
+    document.getElementById('cursorPicker').oninput = (e) => root.style.setProperty('--cursor-color', e.target.value);
+
+    function handleActivity() {
+        if (!isReading) return;
+        document.body.classList.remove('idle');
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => { if (isReading) document.body.classList.add('idle'); }, 2500);
+    }
+
+    function processText() {
+        const lines = textInput.value.split('\n').filter(l => l.trim() !== "");
+        displayArea.innerHTML = "";
+        
+        lines.forEach((lineText, i) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'line-wrapper';
+            wrapper.id = `row-${i}`;
+            
+            const textLine = document.createElement('div');
+            textLine.className = 'text-line';
+            textLine.textContent = lineText;
+            
+            const cursor = document.createElement('div');
+            cursor.className = 'cursor-glide';
+            cursor.id = `cursor-${i}`;
+            
+            wrapper.appendChild(textLine);
+            wrapper.appendChild(cursor);
+            displayArea.appendChild(wrapper);
+        });
+        return lines;
+    }
+
+    function animateLine(lines) {
+        if (!isReading || currentLineIdx >= lines.length) { stopReading(); return; }
+        const cursor = document.getElementById(`cursor-${currentLineIdx}`), 
+              row = document.getElementById(`row-${currentLineIdx}`);
+        
+        cursor.style.display = 'block';
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        const rowWidth = row.offsetWidth;
+        const duration = (rowWidth / 100) * (105 - parseInt(speedControl.value)) * 40; 
+        
+        let startTime = null;
+        function step(timestamp) {
+            if (!startTime) startTime = timestamp;
+            const progress = Math.min((timestamp - startTime) / duration, 1);
+            
+            cursor.style.left = (progress * (rowWidth - 50)) + 'px';
+            
+            if (progress < 1 && isReading) {
+                animationFrame = requestAnimationFrame(step);
+            } else if (isReading) {
+                setTimeout(() => { 
+                    if(!isReading) return; 
+                    cursor.style.display = 'none'; currentLineIdx++; animateLine(lines); 
+                }, /\|\||॥/.test(lines[currentLineIdx]) ? 1800 : 400);
+            }
+        }
+        animationFrame = requestAnimationFrame(step);
+    }
+
+    startBtn.onclick = () => {
+        const lines = processText();
+        if (lines.length === 0) return;
+        isReading = true; currentLineIdx = 0;
+        document.body.classList.add('reading-active');
+        stopBtn.style.display = 'block';
+        animateLine(lines);
+        handleActivity();
+    };
+
+    function stopReading() {
+        isReading = false; 
+        cancelAnimationFrame(animationFrame);
+        document.body.classList.remove('reading-active', 'idle');
+        stopBtn.style.display = 'none';
+        displayArea.innerHTML = "";
+        clearTimeout(idleTimer);
+    }
+</script>
+</body>
+</html>
