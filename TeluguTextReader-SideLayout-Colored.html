@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="te">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telugu Stotram Reader 2026</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=NTR&display=swap" rel="stylesheet">
+    <style>
+        /* Updated 2026 Import: Forced Telugu Subset and Display Block */
+        @import url('https://fonts.googleapis.com');
+
+        :root {
+            --bg-color: #000000;
+            --font-color: #ffffff;
+            --fluid-font: clamp(24px, 6vw + 1rem, 52px);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body { 
+            font-family: 'NTR', serif; /* Use serif fallback for better script matching if NTR fails */
+            background: #000; 
+            color: #fff; 
+            overflow: hidden; 
+            height: 100vh; 
+            display: flex; 
+        }
+
+        .sidebar {
+            width: 350px; background: #1a1a1a; padding: 20px;
+            display: flex; flex-direction: column; border-right: 1px solid #333; z-index: 100;
+        }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid #333; }
+        }
+
+        h2 { color: #1a73e8; margin-bottom: 15px; font-size: 20px; font-family: sans-serif; }
+        
+        textarea { 
+            flex-grow: 1; width: 100%; padding: 12px; background: #222; 
+            color: #ddd; border: 1px solid #444; border-radius: 8px; 
+            font-size: 16px; resize: none; margin-bottom: 15px;
+            font-family: 'NTR', serif;
+        }
+
+        .controls { display: flex; flex-direction: column; gap: 10px; }
+        .config-box { background: #333; padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; }
+        .color-row { display: flex; align-items: center; justify-content: space-between; font-size: 14px; }
+        
+        button { padding: 15px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; width: 100%; }
+        #startBtn { background: #34a853; color: white; }
+        #stopBtn { background: #ea4335; color: white; }
+
+        .prompter-window {
+            flex-grow: 1; height: 100vh; overflow: hidden; position: relative;
+            background-color: var(--bg-color);
+        }
+
+        #scrollContent {
+            position: absolute; top: 100%; left: 0; right: 0;
+            padding: 0 5%; text-align: center; color: var(--font-color);
+        }
+
+        .line {
+            font-family: 'NTR', serif !important; 
+            font-size: var(--fluid-font);
+            line-height: 1.6;
+            margin-bottom: 15px;
+            word-wrap: break-word;
+        }
+
+        .overlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none; z-index: 10;
+            background: linear-gradient(to bottom, 
+                var(--bg-color) 0%, transparent 15%, 
+                transparent 85%, var(--bg-color) 100%);
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h2>Stotram Settings</h2>
+    <textarea id="textInput">
+ఓం నమశ్శివాయ కాంచన మణిమాల
+
+వందే శంభుముమాపతిం సురగురుం
+
+వందే జగత్కారణం ||</textarea>
+    
+    <div class="controls">
+        <div class="config-box">
+            <label style="font-size: 14px;">Scroll Speed</label>
+            <input type="range" id="speedControl" min="1" max="20" value="5">
+        </div>
+        <div class="config-box">
+            <div class="color-row">
+                <label>Background</label>
+                <input type="color" id="bgColorPicker" value="#000000">
+            </div>
+            <div class="color-row">
+                <label>Font Color</label>
+                <input type="color" id="fontColorPicker" value="#ffffff">
+            </div>
+        </div>
+        <button id="startBtn">Start Rolling</button>
+        <button id="stopBtn" style="display:none;">Stop / Reset</button>
+    </div>
+</div>
+
+<div class="prompter-window">
+    <div class="overlay"></div>
+    <div id="scrollContent"></div>
+</div>
+
+<script>
+    const textInput = document.getElementById('textInput');
+    const scrollContent = document.getElementById('scrollContent');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const speedControl = document.getElementById('speedControl');
+    const bgColorPicker = document.getElementById('bgColorPicker');
+    const fontColorPicker = document.getElementById('fontColorPicker');
+    const root = document.documentElement;
+
+    let animationFrame = null;
+    let currentY = 0;
+    let isScrolling = false;
+
+    bgColorPicker.addEventListener('input', (e) => root.style.setProperty('--bg-color', e.target.value));
+    fontColorPicker.addEventListener('input', (e) => root.style.setProperty('--font-color', e.target.value));
+
+    function initText() {
+        const lines = textInput.value.split('\n');
+        scrollContent.innerHTML = lines.map(line => `
+            <div class="line">${line.trim() === "" ? "&nbsp;" : line}</div>
+        `).join('');
+        currentY = window.innerHeight;
+        scrollContent.style.top = currentY + 'px';
+    }
+
+    function step() {
+        if (!isScrolling) return;
+        const speed = parseFloat(speedControl.value) * 0.4;
+        currentY -= speed;
+        scrollContent.style.top = currentY + 'px';
+
+        const contentHeight = scrollContent.offsetHeight;
+        const middleOfScreen = window.innerHeight / 2;
+
+        if (currentY + contentHeight <= middleOfScreen) {
+            currentY = middleOfScreen - contentHeight;
+            scrollContent.style.top = currentY + 'px';
+            stopScrolling();
+        } else {
+            animationFrame = requestAnimationFrame(step);
+        }
+    }
+
+    function startScrolling() {
+        initText();
+        isScrolling = true;
+        startBtn.style.display = 'none';
+        stopBtn.style.display = 'block';
+        animationFrame = requestAnimationFrame(step);
+    }
+
+    function stopScrolling() {
+        isScrolling = false;
+        cancelAnimationFrame(animationFrame);
+        startBtn.style.display = 'block';
+        stopBtn.style.display = 'none';
+    }
+
+    startBtn.addEventListener('click', startScrolling);
+    stopBtn.addEventListener('click', stopScrolling);
+</script>
+</body>
+</html>
