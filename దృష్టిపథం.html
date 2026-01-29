@@ -4,251 +4,535 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>దృష్టిపథం</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com" rel="stylesheet">
     <style>
-        :root {
-            --bg-color: #f4f7f6;
-            --text-color: #111111;
-            --cursor-color: #1a73e8;
-            --font-size: 42px;
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {  
-            font-family: 'NTR', sans-serif;  
-            background: var(--bg-color); 
-            color: var(--text-color); 
-            transition: background 0.3s ease;
-            min-height: 100vh;
-        }
-
-        .settings-container { 
-            width: 95%; max-width: 950px; 
-            margin: 10px auto; background: white; 
-            padding: 15px; border-radius: 12px; 
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
-        }
-
+        :root { --bg-color: #f4f7f6; --text-color: #111111; --cursor-color: #1a73e8; --font-size: 42px; }
+        body { font-family: 'NTR', sans-serif; background: var(--bg-color); color: var(--text-color); margin: 0; overflow-x: hidden; }
+        .settings-container { width: 90%; max-width: 850px; margin: 20px auto; background: white; padding: 25px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
         body.reading-active .settings-container { display: none; }
-
-        body.reading-active.idle #stopBtn {
-            opacity: 0; visibility: hidden; pointer-events: none;
-        }
-
-        h2 { text-align: center; color: #1a73e8; margin-bottom: 10px; font-size: 1.5rem; }
-
-        textarea { 
-            width: 100%; min-height: 120px; padding: 12px; 
-            border: 2px solid #dfe1e5; border-radius: 8px; 
-            margin-bottom: 15px; font-size: 16px; line-height: 1.6; 
-            font-family: 'NTR', sans-serif; 
-        }
-
-        .controls { display: flex; flex-direction: column; gap: 12px; }
-
-        @media (min-width: 768px) {
-            .controls { flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
-        }
-
-        .option-group { 
-            display: flex; gap: 12px; background: #f9f9f9; 
-            padding: 10px 15px; border-radius: 8px; 
-            border: 1px solid #eee; align-items: center;
-            justify-content: space-between; flex-grow: 1;
-        }
-
-        .label-style { font-size: 12px; font-weight: bold; color: #666; text-transform: uppercase;}
-        .val-display { font-weight: bold; color: #1a73e8; min-width: 25px; display: inline-block; }
-
-        button { padding: 15px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; width: 100%; }
-        @media (min-width: 768px) { button { width: auto; } }
-
-        #startBtn { background: #34a853; color: white; }
+        textarea { width: 100%; min-height: 180px; margin-bottom: 20px; padding: 15px; font-size: 18px; border: 2px solid #e0e0e0; border-radius: 10px; }
+        .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .option-group { background: #fdfdfd; padding: 12px; border-radius: 10px; border: 1px solid #eee; display: flex; flex-direction: column; gap: 8px; }
         
-        #stopBtn { 
-            background: #ea4335; color: white; display: none; 
-            position: fixed; bottom: 20px; right: 20px; z-index: 1000;
-            padding: 12px 20px; width: auto;
-            transition: opacity 0.5s ease, visibility 0.5s;
+        /* The container MUST be position: relative for the cursor to align to it */
+        .sloka-container { position: relative; width: 100%; max-width: 800px; margin: 0 auto 40px; opacity: 0; transition: opacity 0.5s blur; filter: blur(0px); }
+        .sloka-container.visible { opacity: 1; }
+        .sloka-container.fade-out { opacity: 0; filter: blur(8px); }
+        
+        .line-row { display: block; white-space: nowrap; margin-bottom: 16px; min-height: 1.2em; position: relative; }
+        .char-span { font-size: var(--font-size); display: inline-block; white-space: pre; line-height: 1.2; position: relative; }
+        
+        #displayArea { display: none; justify-content: center; align-items: center; min-height: 100vh; padding: 10vh 20px; box-sizing: border-box; }
+        body.reading-active #displayArea { display: flex; }
+        
+        #globalCursor { 
+            position: absolute; height: 6px; width: 35px; background: var(--cursor-color);
+            border-radius: 3px; z-index: 100;
+            pointer-events: none;
         }
 
-        .reading-area { 
-            width: 90%; max-width: 950px; 
-            margin: 0 auto; padding: 40px 0; 
+        .slider-group { display: flex; align-items: center; gap: 10px; }
+        .slider-group input[type="range"] { flex: 1; }
+        .slider-group .value-display { min-width: 35px; font-weight: bold; color: var(--text-color); }
+
+        .color-controls { display: flex; gap: 10px; align-items: center; }
+        .color-controls input[type="color"] { width: 50px; height: 40px; border: none; border-radius: 6px; cursor: pointer; }
+
+        #displayArea.scroll-mode { display: flex; flex-direction: column; padding: 40px 20px; overflow-y: hidden; height: 100vh; justify-content: flex-start; align-items: center; }
+        #displayArea.scroll-mode .sloka-container { margin-bottom: 40px; opacity: 1 !important; animation: pageBlurIn 0.5s ease-in-out; }
+
+        @keyframes pageBlurIn {
+            0% {
+                opacity: 0;
+                filter: blur(10px);
+            }
+            100% {
+                opacity: 1;
+                filter: blur(0px);
+            }
         }
 
-        /* Essential for Mobile Wrapping */
-        .line-wrapper { 
-            position: relative; 
-            margin-bottom: 60px; 
-            width: 100%; 
-            display: block;
-        }
-        
-        .text-line { 
-            font-family: 'NTR', sans-serif !important;
-            font-size: var(--font-size) !important;
-            color: var(--text-color) !important;
-            line-height: 1.5; 
-            /* Forces text to wrap and fill width */
-            white-space: normal !important; 
-            word-wrap: break-word !important;
-            display: block !important; 
-            max-width: 100%;
-            position: relative; 
-            z-index: 2; 
-        }
-        
-        .cursor-glide {
-            position: absolute; 
-            bottom: -15px; 
-            left: 0;
-            height: 6px; 
-            width: 50px; 
-            background: var(--cursor-color);
-            border-radius: 3px; 
-            display: none;
-            z-index: 1;
-        }
+        #stopBtn { position: fixed; bottom: 30px; right: 30px; background: #ea4335; color: white; border: none; padding: 15px 30px; border-radius: 50px; cursor: pointer; display: none; z-index: 1000; }
     </style>
 </head>
-<body onmousemove="handleActivity()" ontouchstart="handleActivity()">
+<body>
 
-    <div class="settings-container">
-        <h2>దృష్టిపథం</h2>
-        <textarea id="textInput" placeholder="Paste Telugu text here...">ఓం నమశ్శివాయ కాంచన మణిమాల || 1 ||
-వందే శంభుముమాపతిం సురగురుం || 2 ||</textarea>
-        
-        <div class="controls">
-            <button id="startBtn">Start Reading</button>
+<div class="settings-container">
+    <h2 style="text-align:center;">దృష్టిపథం 2026</h2>
+    <textarea id="textInput">
+        ఓం నమశ్శివాయ కాంచన మణిమాల
+వందే శంభుముమాపతిం సురగురుం
+చంద్రార్క వహ్ని నయనం ఫణిభూషితాంగం
+శైలేంద్రజా ముఖ సరోరుహ రాజహంసం ||
 
-            <div class="option-group">
-                <span class="label-style">Size: <span id="fontVal" class="val-display">42</span></span>
-                <input type="range" id="fontSizeControl" min="20" max="100" value="42" style="flex-grow:1; margin-left:10px;">
+ఓం నమశ్శివాయ కాంచన మణిమాల
+వందే శంభుముమాపతిం సురగురుం
+చంద్రార్క వహ్ని నయనం ఫణిభూషితాంగం
+శైలేంద్రజా ముఖ సరోరుహ రాజహంసం ||
+</textarea>
+    <div class="controls">
+        <div class="option-group"><span>Mode</span>
+            <select id="modeSelect">
+                <option value="unifocus">UniFocus Mode</option>
+                <option value="scroll" selected>Continuous Mode</option>
+            </select>
+        </div>
+        <div class="option-group">
+            <span>Font Size</span>
+            <div class="slider-group">
+                <input type="range" id="fontSizeControl" min="20" max="80" value="42">
+                <span class="value-display" id="fontSizeValue">42</span>
             </div>
-
-            <div class="option-group" style="justify-content: center; gap: 20px;">
-                <div style="display:flex; align-items:center; gap:5px;"><input type="color" id="bgPicker" value="#f4f7f6"><span class="label-style">BG</span></div>
-                <div style="display:flex; align-items:center; gap:5px;"><input type="color" id="textPicker" value="#111111"><span class="label-style">Txt</span></div>
-                <div style="display:flex; align-items:center; gap:5px;"><input type="color" id="cursorPicker" value="#1a73e8"><span class="label-style">Cur</span></div>
+        </div>
+        <div class="option-group">
+            <span>Speed</span>
+            <div class="slider-group">
+                <input type="range" id="speedControl" min="0.5" max="12" step="0.5" value="1">
+                <span class="value-display" id="speedValue">1</span>
             </div>
-
-            <div class="option-group">
-                <span class="label-style">Speed: <span id="speedVal" class="val-display">40</span></span>
-                <input type="range" id="speedControl" min="5" max="100" value="40" style="flex-grow:1; margin-left:10px;">
+        </div>
+        <div class="option-group">
+            <span>Colors</span>
+            <div class="color-controls">
+                <input type="color" id="bgPicker" value="#f4f7f6" title="Background Color">
+                <input type="color" id="textPicker" value="#111111" title="Text Color">
+                <input type="color" id="cursorPicker" value="#1a73e8" title="Cursor Color">
             </div>
         </div>
     </div>
+    <button onclick="startReading()" style="width:100%; padding:15px; background:#34a853; color:white; border:none; border-radius:8px; cursor:pointer;">Start Reading</button>
+</div>
 
-    <button id="stopBtn" onclick="stopReading()">Stop / Reset</button>
-    <div class="reading-area" id="displayArea"></div>
+<button id="stopBtn" onclick="stopReading()">Reset</button>
+<div id="displayArea"></div>
 
 <script>
-    const displayArea = document.getElementById('displayArea'), 
-          textInput = document.getElementById('textInput'),
-          startBtn = document.getElementById('startBtn'), 
-          stopBtn = document.getElementById('stopBtn'), 
-          speedControl = document.getElementById('speedControl'), 
-          fontSizeControl = document.getElementById('fontSizeControl'),
-          fontVal = document.getElementById('fontVal'),
-          speedVal = document.getElementById('speedVal'),
-          root = document.documentElement;
+    let slokas = [], currentSlokaIdx = 0, isReading = false, charTimeout = null;
+    const segmenter = new Intl.Segmenter('te', { granularity: 'grapheme' });
 
-    let isReading = false, currentLineIdx = 0, animationFrame = null, idleTimer = null;
-
-    fontSizeControl.oninput = (e) => {
-        root.style.setProperty('--font-size', e.target.value + 'px');
-        fontVal.textContent = e.target.value;
-    };
-    
-    speedControl.oninput = (e) => speedVal.textContent = e.target.value;
-
-    document.getElementById('bgPicker').oninput = (e) => root.style.setProperty('--bg-color', e.target.value);
-    document.getElementById('textPicker').oninput = (e) => root.style.setProperty('--text-color', e.target.value);
-    document.getElementById('cursorPicker').oninput = (e) => root.style.setProperty('--cursor-color', e.target.value);
-
-    function handleActivity() {
-        if (!isReading) return;
-        document.body.classList.remove('idle');
-        clearTimeout(idleTimer);
-        idleTimer = setTimeout(() => { if (isReading) document.body.classList.add('idle'); }, 2500);
+    function parseSlokas(text) {
+        // Split by || or double newlines
+        let parts = text.split(/\|\||\n\s*\n/);
+        return parts
+            .map(part => part.trim())
+            .filter(part => part.length > 0)
+            .map(part => part.split('\n'));
     }
 
-    function processText() {
-        const lines = textInput.value.split('\n').filter(l => l.trim() !== "");
-        displayArea.innerHTML = "";
+    function startReading() {
+        const text = document.getElementById('textInput').value.trim();
+        if (!text) return;
+
+        // Update CSS variables from color pickers
+        document.documentElement.style.setProperty('--bg-color', document.getElementById('bgPicker').value);
+        document.documentElement.style.setProperty('--text-color', document.getElementById('textPicker').value);
+        document.documentElement.style.setProperty('--cursor-color', document.getElementById('cursorPicker').value);
+        document.documentElement.style.setProperty('--font-size', document.getElementById('fontSizeControl').value + 'px');
+        document.body.style.background = document.getElementById('bgPicker').value;
+        document.body.style.color = document.getElementById('textPicker').value;
+
+        const mode = document.getElementById('modeSelect').value;
         
-        lines.forEach((lineText, i) => {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'line-wrapper';
-            wrapper.id = `row-${i}`;
+        if (mode === 'unifocus') {
+            slokas = parseSlokas(text);
+            currentSlokaIdx = 0;
+            isReading = true;
+            document.body.classList.add('reading-active');
+            document.getElementById('stopBtn').style.display = 'block';
+            document.getElementById('displayArea').classList.remove('scroll-mode');
+            renderSloka();
+        } else {
+            // Continuous scroll mode
+            slokas = parseSlokas(text);
+            currentSlokaIdx = 0;
+            isReading = true;
+            document.body.classList.add('reading-active');
+            document.getElementById('stopBtn').style.display = 'block';
+            document.getElementById('displayArea').classList.add('scroll-mode');
+            renderScrollMode();
+        }
+    }
+
+    function renderSloka() {
+        if (!isReading || currentSlokaIdx >= slokas.length) return stopReading();
+
+        const mode = document.getElementById('modeSelect').value;
+        const area = document.getElementById('displayArea');
+        
+        // Fade out previous sloka if it exists
+        const existing = area.querySelector('.sloka-container');
+        if (existing) {
+            existing.classList.add('fade-out');
+            setTimeout(() => {
+                area.innerHTML = '';
+                renderSlokaContent();
+            }, 500);
+        } else {
+            area.innerHTML = '';
+            renderSlokaContent();
+        }
+    }
+
+    function renderSlokaContent() {
+        const area = document.getElementById('displayArea');
+        const container = document.createElement('div');
+        container.className = 'sloka-container';
+
+        const charSequence = [];
+        const sloka = slokas[currentSlokaIdx];
+
+        sloka.forEach((line, lIdx) => {
+            const row = document.createElement('div');
+            row.className = 'line-row';
             
-            const textLine = document.createElement('div');
-            textLine.className = 'text-line';
-            textLine.textContent = lineText;
-            
-            const cursor = document.createElement('div');
-            cursor.className = 'cursor-glide';
-            cursor.id = `cursor-${i}`;
-            
-            wrapper.appendChild(textLine);
-            wrapper.appendChild(cursor);
-            displayArea.appendChild(wrapper);
+            // Handle empty lines (spacing between slokas)
+            if (line.trim() === "") {
+                row.style.height = "1.5em";
+                container.appendChild(row);
+            } else {
+                const segments = Array.from(segmenter.segment(line));
+                segments.forEach((seg, sIdx) => {
+                    const span = document.createElement('span');
+                    span.className = 'char-span';
+                    span.id = `c-${lIdx}-${sIdx}`;
+                    span.textContent = seg.segment;
+                    row.appendChild(span);
+                    charSequence.push({ id: span.id, lineIdx: lIdx });
+                });
+                container.appendChild(row);
+            }
         });
-        return lines;
+
+        area.appendChild(container);
+        setTimeout(() => {
+            container.classList.add('visible');
+            animateCursor(charSequence, container);
+        }, 100);
     }
 
-    function animateLine(lines) {
-        if (!isReading || currentLineIdx >= lines.length) { stopReading(); return; }
-        const cursor = document.getElementById(`cursor-${currentLineIdx}`), 
-              row = document.getElementById(`row-${currentLineIdx}`);
-        
-        cursor.style.display = 'block';
-        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    function animateCursor(sequence, container) {
+        if (!isReading || sequence.length === 0) {
+            setTimeout(() => {
+                currentSlokaIdx++;
+                renderSloka();
+            }, 1000);
+            return;
+        }
 
-        const rowWidth = row.offsetWidth;
-        const duration = (rowWidth / 100) * (105 - parseInt(speedControl.value)) * 40; 
+        // Create or reuse fixed positioned cursor
+        let cursor = document.getElementById('globalCursor');
+        if (!cursor) {
+            cursor = document.createElement('div');
+            cursor.id = 'globalCursor';
+            cursor.style.position = 'fixed';
+            cursor.style.height = '6px';
+            cursor.style.width = '35px';
+            cursor.style.borderRadius = '3px';
+            cursor.style.zIndex = '100';
+            cursor.style.pointerEvents = 'none';
+            document.body.appendChild(cursor);
+        }
+
+        // Pre-calculate all character positions, only counting distances within lines
+        const charPositions = [];
+        const distances = [0];
         
-        let startTime = null;
-        function step(timestamp) {
-            if (!startTime) startTime = timestamp;
-            const progress = Math.min((timestamp - startTime) / duration, 1);
-            
-            cursor.style.left = (progress * (rowWidth - 50)) + 'px';
-            
-            if (progress < 1 && isReading) {
-                animationFrame = requestAnimationFrame(step);
-            } else if (isReading) {
-                setTimeout(() => { 
-                    if(!isReading) return; 
-                    cursor.style.display = 'none'; currentLineIdx++; animateLine(lines); 
-                }, /\|\||॥/.test(lines[currentLineIdx]) ? 1800 : 400);
+        for (let i = 0; i < sequence.length; i++) {
+            const charEl = document.getElementById(sequence[i].id);
+            if (charEl) {
+                const charRect = charEl.getBoundingClientRect();
+                charPositions.push({
+                    left: charRect.left,
+                    top: charRect.bottom - 4
+                });
+                
+                if (i > 0) {
+                    const prev = charPositions[i - 1];
+                    const curr = charPositions[i];
+                    
+                    // Only count distance if on same line (Y difference < 5px)
+                    if (Math.abs(curr.top - prev.top) <= 5) {
+                        const dx = curr.left - prev.left;
+                        const distance = Math.abs(dx);
+                        distances.push(distances[i - 1] + distance);
+                    } else {
+                        // New line: distance resets to 0 (no wait at line beginning)
+                        distances.push(distances[i - 1]);
+                    }
+                }
             }
         }
-        animationFrame = requestAnimationFrame(step);
+
+        if (charPositions.length === 0) {
+            setTimeout(() => {
+                currentSlokaIdx++;
+                renderSloka();
+            }, 1000);
+            return;
+        }
+
+        const totalDistance = distances[distances.length - 1];
+        const speedValue = parseInt(document.getElementById('speedControl').value);
+        const pixelsPerSecond = 100 * speedValue;
+        const totalDuration = (totalDistance / pixelsPerSecond) * 1000;
+        const animationStartTime = performance.now();
+
+        const updateCursorPosition = (currentTime) => {
+            if (!isReading) return;
+
+            const elapsed = currentTime - animationStartTime;
+            const progress = Math.min(elapsed / totalDuration, 1);
+            const targetDistance = progress * totalDistance;
+
+            // Find which character segment we're in
+            let segmentIdx = 0;
+            for (let i = 0; i < distances.length - 1; i++) {
+                if (targetDistance >= distances[i] && targetDistance < distances[i + 1]) {
+                    segmentIdx = i;
+                    break;
+                }
+            }
+            if (targetDistance >= distances[distances.length - 1]) {
+                segmentIdx = distances.length - 2;
+            }
+
+            const cursor = document.getElementById('globalCursor');
+            if (cursor && charPositions.length > 0) {
+                const nextIdx = Math.min(segmentIdx + 1, charPositions.length - 1);
+                const current = charPositions[segmentIdx];
+                const next = charPositions[nextIdx];
+                
+                // Check if crossing to a new line (instant vertical jump, no interpolation)
+                const isNewLine = Math.abs(current.top - next.top) > 5;
+                
+                if (isNewLine) {
+                    // Instantly jump to next line position, no wait
+                    cursor.style.left = next.left + 'px';
+                    cursor.style.top = next.top + 'px';
+                } else {
+                    // Same line - smooth horizontal interpolation only
+                    const segmentDistance = distances[nextIdx] - distances[segmentIdx];
+                    const segmentProgress = segmentDistance > 0 
+                        ? (targetDistance - distances[segmentIdx]) / segmentDistance 
+                        : 0;
+                    
+                    const interpolatedLeft = current.left + (next.left - current.left) * segmentProgress;
+                    cursor.style.left = interpolatedLeft + 'px';
+                    cursor.style.top = current.top + 'px';
+                }
+                cursor.style.background = getComputedStyle(document.documentElement).getPropertyValue('--cursor-color').trim();
+            }
+
+            if (progress < 1) {
+                requestAnimationFrame(updateCursorPosition);
+            } else {
+                // Animation complete
+                setTimeout(() => {
+                    currentSlokaIdx++;
+                    renderSloka();
+                }, 1000);
+            }
+        };
+
+        requestAnimationFrame(updateCursorPosition);
     }
 
-    startBtn.onclick = () => {
-        const lines = processText();
-        if (lines.length === 0) return;
-        isReading = true; currentLineIdx = 0;
-        document.body.classList.add('reading-active');
-        stopBtn.style.display = 'block';
-        animateLine(lines);
-        handleActivity();
-    };
+    function renderScrollMode() {
+        const area = document.getElementById('displayArea');
+        area.innerHTML = '';
+        
+        // Create single cursor for scroll mode
+        const globalCursor = document.createElement('div');
+        globalCursor.id = 'globalCursor';
+        globalCursor.style.position = 'fixed';
+        globalCursor.style.height = '6px';
+        globalCursor.style.width = '35px';
+        globalCursor.style.background = getComputedStyle(document.documentElement).getPropertyValue('--cursor-color').trim();
+        globalCursor.style.borderRadius = '3px';
+        globalCursor.style.zIndex = '100';
+        globalCursor.style.pointerEvents = 'none';
+        document.body.appendChild(globalCursor);
+
+        const charSequence = [];
+
+        slokas.forEach((sloka, sIdx) => {
+            const container = document.createElement('div');
+            container.className = 'sloka-container';
+            container.id = `sloka-${sIdx}`;
+            
+            sloka.forEach((line, lIdx) => {
+                const row = document.createElement('div');
+                row.className = 'line-row';
+                
+                if (line.trim() === "") {
+                    row.style.height = "1.5em";
+                    container.appendChild(row);
+                } else {
+                    const segments = Array.from(segmenter.segment(line));
+                    segments.forEach((seg, segIdx) => {
+                        const span = document.createElement('span');
+                        span.className = 'char-span';
+                        span.id = `scroll-c-${sIdx}-${lIdx}-${segIdx}`;
+                        span.textContent = seg.segment;
+                        row.appendChild(span);
+                        charSequence.push(span.id);
+                    });
+                    container.appendChild(row);
+                }
+            });
+            area.appendChild(container);
+        });
+
+        setTimeout(() => {
+            animateScrollCursor(charSequence);
+        }, 100);
+    }
+
+    function animateScrollCursor(sequence) {
+        if (!isReading || sequence.length === 0) {
+            const cursor = document.getElementById('globalCursor');
+            if (cursor) cursor.remove();
+            return stopReading();
+        }
+
+        // Pre-calculate all character positions, only counting distances within lines
+        const charPositions = [];
+        const distances = [0];
+        
+        for (let i = 0; i < sequence.length; i++) {
+            const charEl = document.getElementById(sequence[i]);
+            if (charEl) {
+                const charRect = charEl.getBoundingClientRect();
+                charPositions.push({
+                    left: charRect.left,
+                    top: charRect.bottom - 4
+                });
+                
+                if (i > 0) {
+                    const prev = charPositions[i - 1];
+                    const curr = charPositions[i];
+                    
+                    // Only count distance if on same line (Y difference < 5px)
+                    if (Math.abs(curr.top - prev.top) <= 5) {
+                        const dx = curr.left - prev.left;
+                        const distance = Math.abs(dx);
+                        distances.push(distances[i - 1] + distance);
+                    } else {
+                        // New line: distance resets to 0 (no wait at line beginning)
+                        distances.push(distances[i - 1]);
+                    }
+                }
+            }
+        }
+
+        if (charPositions.length === 0) {
+            const cursor = document.getElementById('globalCursor');
+            if (cursor) cursor.remove();
+            return stopReading();
+        }
+
+        const totalDistance = distances[distances.length - 1];
+        const speedValue = parseInt(document.getElementById('speedControl').value);
+        const pixelsPerSecond = 100 * speedValue; // Higher speed value = faster movement
+        const totalDuration = (totalDistance / pixelsPerSecond) * 1000; // in milliseconds
+        const animationStartTime = performance.now();
+
+        const updateCursorPosition = (currentTime) => {
+            if (!isReading) return;
+
+            const elapsed = currentTime - animationStartTime;
+            const progress = Math.min(elapsed / totalDuration, 1);
+            const targetDistance = progress * totalDistance;
+
+            // Find which character segment we're in
+            let segmentIdx = 0;
+            for (let i = 0; i < distances.length - 1; i++) {
+                if (targetDistance >= distances[i] && targetDistance < distances[i + 1]) {
+                    segmentIdx = i;
+                    break;
+                }
+            }
+            if (targetDistance >= distances[distances.length - 1]) {
+                segmentIdx = distances.length - 2;
+            }
+
+            const cursor = document.getElementById('globalCursor');
+            if (cursor && charPositions.length > 0) {
+                const nextIdx = Math.min(segmentIdx + 1, charPositions.length - 1);
+                const current = charPositions[segmentIdx];
+                const next = charPositions[nextIdx];
+                
+                // Check if crossing to a new line (instant vertical jump, no interpolation)
+                const isNewLine = Math.abs(current.top - next.top) > 5;
+                
+                if (isNewLine) {
+                    // Instantly jump to next line position, no wait
+                    cursor.style.left = next.left + 'px';
+                    cursor.style.top = next.top + 'px';
+                } else {
+                    // Same line - smooth horizontal interpolation only
+                    const segmentDistance = distances[nextIdx] - distances[segmentIdx];
+                    const segmentProgress = segmentDistance > 0 
+                        ? (targetDistance - distances[segmentIdx]) / segmentDistance 
+                        : 0;
+                    
+                    const interpolatedLeft = current.left + (next.left - current.left) * segmentProgress;
+                    cursor.style.left = interpolatedLeft + 'px';
+                    cursor.style.top = current.top + 'px';
+                }
+                cursor.style.background = getComputedStyle(document.documentElement).getPropertyValue('--cursor-color').trim();
+            }
+
+            if (progress < 1) {
+                requestAnimationFrame(updateCursorPosition);
+            } else {
+                // Animation complete
+                const cursor = document.getElementById('globalCursor');
+                if (cursor) cursor.remove();
+                stopReading();
+            }
+        };
+
+        requestAnimationFrame(updateCursorPosition);
+    }
 
     function stopReading() {
-        isReading = false; 
-        cancelAnimationFrame(animationFrame);
-        document.body.classList.remove('reading-active', 'idle');
-        stopBtn.style.display = 'none';
-        displayArea.innerHTML = "";
-        clearTimeout(idleTimer);
+        isReading = false;
+        clearTimeout(charTimeout);
+        document.body.classList.remove('reading-active');
+        document.getElementById('stopBtn').style.display = 'none';
+        document.getElementById('displayArea').innerHTML = '';
+        
+        // Remove cursor element
+        const cursor = document.getElementById('globalCursor');
+        if (cursor) cursor.remove();
     }
+
+    // Update font size in real-time with slider
+    document.getElementById('fontSizeControl')?.addEventListener('input', (e) => {
+        document.documentElement.style.setProperty('--font-size', e.target.value + 'px');
+        document.getElementById('fontSizeValue').textContent = e.target.value;
+    });
+
+    // Update speed display
+    document.getElementById('speedControl')?.addEventListener('input', (e) => {
+        document.getElementById('speedValue').textContent = e.target.value;
+    });
+
+    // Update colors in real-time
+    document.getElementById('bgPicker')?.addEventListener('input', (e) => {
+        document.documentElement.style.setProperty('--bg-color', e.target.value);
+        document.body.style.background = e.target.value;
+    });
+
+    document.getElementById('textPicker')?.addEventListener('input', (e) => {
+        document.documentElement.style.setProperty('--text-color', e.target.value);
+        document.body.style.color = e.target.value;
+    });
+
+    document.getElementById('cursorPicker')?.addEventListener('input', (e) => {
+        document.documentElement.style.setProperty('--cursor-color', e.target.value);
+    });
 </script>
 </body>
 </html>
