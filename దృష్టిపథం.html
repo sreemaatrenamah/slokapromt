@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1a73e8">
+    <meta name="description" content="Smooth cursor-based Sanskrit sloka reader with customizable fonts, colors, and reading speeds">
     <title>దృష్టిపథం</title>
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%231a73e8' width='192' height='192'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='100' fill='white' font-family='Arial' font-weight='bold'>📖</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%231a73e8' width='180' height='180' rx='40'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='90' fill='white' font-family='Arial' font-weight='bold'>📖</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=NTR&display=swap" rel="stylesheet">
@@ -122,28 +127,65 @@
     let slokas = [], currentSlokaIdx = 0, isReading = false, charTimeout = null;
     const segmenter = new Intl.Segmenter('te', { granularity: 'grapheme' });
 
+    // Logging system
+    const log = {
+        info: (msg, data = null) => {
+            console.log(`[INFO] ${new Date().toISOString().substr(11, 12)} - ${msg}`, data || '');
+        },
+        debug: (msg, data = null) => {
+            console.debug(`[DEBUG] ${new Date().toISOString().substr(11, 12)} - ${msg}`, data || '');
+        },
+        error: (msg, data = null) => {
+            console.error(`[ERROR] ${new Date().toISOString().substr(11, 12)} - ${msg}`, data || '');
+        },
+        warn: (msg, data = null) => {
+            console.warn(`[WARN] ${new Date().toISOString().substr(11, 12)} - ${msg}`, data || '');
+        }
+    };
+
+    log.info('Application initialized');
+    log.debug('Segmenter created for Telugu', { granularity: 'grapheme' });
+
     function parseSlokas(text) {
+        log.debug('Parsing slokas from text', { textLength: text.length });
+        
         // Split by || or double newlines
         let parts = text.split(/\|\||\n\s*\n/);
-        return parts
+        const result = parts
             .map(part => part.trim())
             .filter(part => part.length > 0)
             .map(part => part.split('\n'));
+            
+        log.info('Slokas parsed successfully', { count: result.length, totalLines: result.reduce((sum, sloka) => sum + sloka.length, 0) });
+        return result;
     }
 
     function startReading() {
         const text = document.getElementById('textInput').value.trim();
-        if (!text) return;
+        if (!text) {
+            log.warn('Start reading called with empty text');
+            return;
+        }
 
+        log.info('Starting reading session');
+        
         // Update CSS variables from color pickers
-        document.documentElement.style.setProperty('--bg-color', document.getElementById('bgPicker').value);
-        document.documentElement.style.setProperty('--text-color', document.getElementById('textPicker').value);
-        document.documentElement.style.setProperty('--cursor-color', document.getElementById('cursorPicker').value);
-        document.documentElement.style.setProperty('--font-size', document.getElementById('fontSizeControl').value + 'px');
-        document.body.style.background = document.getElementById('bgPicker').value;
-        document.body.style.color = document.getElementById('textPicker').value;
+        const bgColor = document.getElementById('bgPicker').value;
+        const textColor = document.getElementById('textPicker').value;
+        const cursorColor = document.getElementById('cursorPicker').value;
+        const fontSize = document.getElementById('fontSizeControl').value;
+        
+        document.documentElement.style.setProperty('--bg-color', bgColor);
+        document.documentElement.style.setProperty('--text-color', textColor);
+        document.documentElement.style.setProperty('--cursor-color', cursorColor);
+        document.documentElement.style.setProperty('--font-size', fontSize + 'px');
+        document.body.style.background = bgColor;
+        document.body.style.color = textColor;
+        
+        log.debug('UI settings applied', { bgColor, textColor, cursorColor, fontSize });
 
         const mode = document.getElementById('modeSelect').value;
+        log.info('Reading mode selected', { mode });
         
         if (mode === 'unifocus') {
             slokas = parseSlokas(text);
@@ -152,6 +194,7 @@
             document.body.classList.add('reading-active');
             document.getElementById('stopBtn').style.display = 'block';
             document.getElementById('displayArea').classList.remove('scroll-mode');
+            log.info('Starting UniFocus mode');
             renderSloka();
         } else {
             // Continuous scroll mode
@@ -161,19 +204,26 @@
             document.body.classList.add('reading-active');
             document.getElementById('stopBtn').style.display = 'block';
             document.getElementById('displayArea').classList.add('scroll-mode');
+            log.info('Starting Continuous mode');
             renderScrollMode();
         }
     }
 
     function renderSloka() {
-        if (!isReading || currentSlokaIdx >= slokas.length) return stopReading();
+        if (!isReading || currentSlokaIdx >= slokas.length) {
+            log.info('Rendering complete or stopped', { isReading, currentSlokaIdx, totalSlokas: slokas.length });
+            return stopReading();
+        }
 
+        log.debug('Rendering sloka', { index: currentSlokaIdx, total: slokas.length });
+        
         const mode = document.getElementById('modeSelect').value;
         const area = document.getElementById('displayArea');
         
         // Fade out previous sloka if it exists
         const existing = area.querySelector('.sloka-container');
         if (existing) {
+            log.debug('Fading out previous sloka');
             existing.classList.add('fade-out');
             setTimeout(() => {
                 area.innerHTML = '';
@@ -192,6 +242,8 @@
 
         const charSequence = [];
         const sloka = slokas[currentSlokaIdx];
+        
+        log.debug('Rendering sloka content', { slokaLines: sloka.length });
 
         sloka.forEach((line, lIdx) => {
             const row = document.createElement('div');
@@ -201,8 +253,11 @@
             if (line.trim() === "") {
                 row.style.height = "1.5em";
                 container.appendChild(row);
+                log.debug('Added empty line', { lineIndex: lIdx });
             } else {
                 const segments = Array.from(segmenter.segment(line));
+                log.debug('Processing line', { lineIndex: lIdx, segments: segments.length });
+                
                 segments.forEach((seg, sIdx) => {
                     const span = document.createElement('span');
                     span.className = 'char-span';
@@ -216,6 +271,8 @@
         });
 
         area.appendChild(container);
+        log.info('Sloka content rendered', { totalChars: charSequence.length });
+        
         setTimeout(() => {
             container.classList.add('visible');
             animateCursor(charSequence, container);
@@ -509,6 +566,8 @@
     }
     
     function stopReading() {
+        log.info('Stopping reading session', { currentSloka: currentSlokaIdx, wasReading: isReading });
+        
         isReading = false;
         clearTimeout(charTimeout);
         document.body.classList.remove('reading-active');
@@ -517,33 +576,43 @@
         
         // Remove cursor element
         const cursor = document.getElementById('globalCursor');
-        if (cursor) cursor.remove();
+        if (cursor) {
+            cursor.remove();
+            log.debug('Global cursor removed');
+        }
+        
+        log.info('Reading session stopped successfully');
     }
 
     // Update font size in real-time with slider
     document.getElementById('fontSizeControl')?.addEventListener('input', (e) => {
         document.documentElement.style.setProperty('--font-size', e.target.value + 'px');
         document.getElementById('fontSizeValue').textContent = e.target.value;
+        log.debug('Font size changed', { newSize: e.target.value });
     });
 
     // Update speed display
     document.getElementById('speedControl')?.addEventListener('input', (e) => {
         document.getElementById('speedValue').textContent = e.target.value;
+        log.debug('Speed changed', { newSpeed: e.target.value });
     });
 
     // Update colors in real-time
     document.getElementById('bgPicker')?.addEventListener('input', (e) => {
         document.documentElement.style.setProperty('--bg-color', e.target.value);
         document.body.style.background = e.target.value;
+        log.debug('Background color changed', { newColor: e.target.value });
     });
 
     document.getElementById('textPicker')?.addEventListener('input', (e) => {
         document.documentElement.style.setProperty('--text-color', e.target.value);
         document.body.style.color = e.target.value;
+        log.debug('Text color changed', { newColor: e.target.value });
     });
 
     document.getElementById('cursorPicker')?.addEventListener('input', (e) => {
         document.documentElement.style.setProperty('--cursor-color', e.target.value);
+        log.debug('Cursor color changed', { newColor: e.target.value });
     });
 
     // Set responsive defaults on page load
@@ -560,7 +629,25 @@
         document.getElementById('fontSizeControl').value = defaultFontSize;
         document.getElementById('fontSizeValue').textContent = defaultFontSize;
         document.documentElement.style.setProperty('--font-size', defaultFontSize + 'px');
+        
+        log.info('Responsive defaults set', { screenWidth: width, fontSize: defaultFontSize });
     });
+
+    // Register Service Worker for PWA functionality
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then((registration) => {
+                    log.info('Service Worker registered successfully', { scope: registration.scope });
+                })
+                .catch((error) => {
+                    log.error('Service Worker registration failed', error);
+                });
+        });
+    } else {
+        log.warn('Service Worker not supported in this browser');
+    }
+
 </script>
 </body>
 </html>
