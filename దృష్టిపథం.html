@@ -70,7 +70,7 @@
 
         /* Rolling Mode styles */
         #displayArea.rolling-mode { display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden; position: relative; height: 100vh; }
-        .rolling-container { position: absolute; width: 100%; text-align: center; white-space: pre-wrap; word-wrap: break-word; left: 0; right: 0; transition: none; will-change: transform; transform: translateZ(0); backface-visibility: hidden; }
+        .rolling-container { position: absolute; top: 0; width: 100%; text-align: center; white-space: pre-wrap; word-wrap: break-word; left: 0; right: 0; transition: none; will-change: transform; transform: translateZ(0); backface-visibility: hidden; }
         .rolling-line { font-size: var(--font-size); margin: 0.6em 0; line-height: 1.4; color: var(--text-color); padding: 0 20px; white-space: pre-wrap; }
         .rolling-line.empty { margin: 1.2em 0; }
 
@@ -88,7 +88,7 @@
 <body>
 
 <div class="settings-container">
-    <h2 style="text-align:center;">దృష్టిపథం 2026</h2>
+    <h2 style="text-align:center;">దృష్టిపథం</h2>
     <textarea id="textInput" placeholder="Paste your slokas here..."></textarea>
     <div class="controls">
         <div class="option-group"><span>Mode</span>
