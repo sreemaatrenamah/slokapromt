@@ -89,18 +89,7 @@
 
 <div class="settings-container">
     <h2 style="text-align:center;">దృష్టిపథం 2026</h2>
-    <textarea id="textInput">
-శుక్లాం బరధరం-విఀష్ణుం శశివర్ణం చతుర్భుజమ్ ।
-ప్రసన్నవదనం ధ్యాయేత్ సర్వ విఘ్నోపశాంతయే
-యస్యద్విరద వక్త్రాద్యాః పారిషద్యాః పరశ్శతమ్ ।
-విఘ్నం నిఘ్నంతు సతతం-విఀష్వక్సేనం తమాశ్రయే ॥
-
-శుక్లాం బరధరం-విఀష్ణుం శశివర్ణం చతుర్భుజమ్ ।
-ప్రసన్నవదనం ధ్యాయేత్ సర్వ విఘ్నోపశాంతయే
-యస్యద్విరద వక్త్రాద్యాః పారిషద్యాః పరశ్శతమ్ ।
-విఘ్నం నిఘ్నంతు సతతం-విఀష్వక్సేనం తమాశ్రయే ॥
-
-</textarea>
+    <textarea id="textInput" placeholder="Paste your slokas here..."></textarea>
     <div class="controls">
         <div class="option-group"><span>Mode</span>
             <select id="modeSelect">
@@ -137,6 +126,12 @@
                 <span>Show Branding</span>
             </label>
         </div>
+        <div class="option-group" id="sampleTextOption" style="display: none;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="useSampleText" style="cursor: pointer;">
+                <span>Use sample text (local testing)</span>
+            </label>
+        </div>
     </div>
     <button onclick="startReading()" style="width:100%; padding:15px; background:#34a853; color:white; border:none; border-radius:8px; cursor:pointer;">Start Reading</button>
 </div>
@@ -153,6 +148,20 @@
     let resetRevealTimeout = null;
     let readingStartTime = 0;
     const segmenter = new Intl.Segmenter('te', { granularity: 'grapheme' });
+    const DRAFT_STORAGE_KEY = 'slokaReader.draft.v1';
+    const SAMPLE_TEXT = `శుక్లాం బరధరం-విఀష్ణుం శశివర్ణం చతుర్భుజమ్ ।
+ప్రసన్నవదనం ధ్యాయేత్ సర్వ విఘ్నోపశాంతయే
+యస్యద్విరద వక్త్రాద్యాః పారిషద్యాః పరశ్శతమ్ ।
+విఘ్నం నిఘ్నంతు సతతం-విఀష్వక్సేనం తమాశ్రయే ॥
+
+శుక్లాం బరధరం-విఀష్ణుం శశివర్ణం చతుర్భుజమ్ ।
+ప్రసన్నవదనం ధ్యాయేత్ సర్వ విఘ్నోపశాంతయే
+యస్యద్విరద వక్త్రాద్యాః పారిషద్యాః పరశ్శతమ్ ।
+విఘ్నం నిఘ్నంతు సతతం-విఀష్వక్సేనం తమాశ్రయే ॥
+
+`;
+    let hasUnsavedChanges = false;
+    let lastDraftText = '';
 
     // Screen Wake Lock Management for phones
     async function acquireWakeLock() {
@@ -205,6 +214,45 @@
 
     log.info('Application initialized');
     log.debug('Segmenter created for Telugu', { granularity: 'grapheme' });
+
+    function saveDraft(text) {
+        try {
+            localStorage.setItem(DRAFT_STORAGE_KEY, text);
+            lastDraftText = text;
+        } catch (err) {
+            log.warn('Draft save failed', err);
+        }
+    }
+
+    function restoreDraftIfAvailable() {
+        try {
+            const textInput = document.getElementById('textInput');
+            if (!textInput) return;
+
+            const saved = localStorage.getItem(DRAFT_STORAGE_KEY);
+            if (saved && textInput.value.trim().length === 0) {
+                textInput.value = saved;
+                log.info('Draft restored from local storage');
+            }
+
+            lastDraftText = textInput.value;
+            hasUnsavedChanges = false;
+        } catch (err) {
+            log.warn('Draft restore failed', err);
+        }
+    }
+
+    function applySampleTextIfRequested() {
+        if (window.location.protocol !== 'file:') return;
+        const sampleToggle = document.getElementById('useSampleText');
+        if (!sampleToggle || !textInputEl) return;
+
+        if (sampleToggle.checked && textInputEl.value.trim().length === 0) {
+            textInputEl.value = SAMPLE_TEXT;
+            saveDraft(textInputEl.value);
+            hasUnsavedChanges = false;
+        }
+    }
 
     function parseSlokas(text) {
         log.debug('Parsing slokas from text', { textLength: text.length });
@@ -828,6 +876,47 @@
         log.debug('Cursor color changed', { newColor: e.target.value });
     });
 
+    // Draft persistence + unsaved changes warning
+    const textInputEl = document.getElementById('textInput');
+    textInputEl?.addEventListener('input', (e) => {
+        hasUnsavedChanges = true;
+        saveDraft(e.target.value);
+    });
+
+    const sampleToggleEl = document.getElementById('useSampleText');
+    sampleToggleEl?.addEventListener('change', (e) => {
+        if (!textInputEl) return;
+        if (e.target.checked) {
+            if (textInputEl.value.trim().length === 0) {
+                textInputEl.value = SAMPLE_TEXT;
+                saveDraft(textInputEl.value);
+                hasUnsavedChanges = false;
+            }
+        } else if (textInputEl.value === SAMPLE_TEXT) {
+            textInputEl.value = '';
+            saveDraft('');
+            hasUnsavedChanges = false;
+        }
+    });
+
+    window.addEventListener('beforeunload', (e) => {
+        const currentText = textInputEl ? textInputEl.value.trim() : '';
+        const isDraftDirty = hasUnsavedChanges || (currentText.length > 0 && currentText !== lastDraftText);
+        if (!isDraftDirty) return;
+        e.preventDefault();
+        e.returnValue = '';
+    });
+
+    window.addEventListener('pagehide', () => {
+        if (textInputEl) saveDraft(textInputEl.value);
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden' && textInputEl) {
+            saveDraft(textInputEl.value);
+        }
+    });
+
     function revealResetTemporarily() {
         if (!isReading) return;
         if (Date.now() - readingStartTime < 2000) return;
@@ -871,6 +960,13 @@
         document.getElementById('fontSizeValue').textContent = defaultFontSize;
         document.documentElement.style.setProperty('--font-size', defaultFontSize + 'px');
         
+        const sampleOptionEl = document.getElementById('sampleTextOption');
+        if (sampleOptionEl && window.location.protocol === 'file:') {
+            sampleOptionEl.style.display = '';
+        }
+
+        restoreDraftIfAvailable();
+        applySampleTextIfRequested();
         log.info('Responsive defaults set', { screenWidth: width, fontSize: defaultFontSize });
     });
 
