@@ -38,7 +38,8 @@
         .line-row { display: block; white-space: normal; word-wrap: break-word; margin-bottom: 16px; min-height: 1.2em; position: relative; }
         .char-span { font-size: var(--font-size); display: inline-block; white-space: pre; line-height: 1.4; position: relative; }
         
-        #displayArea { display: none; justify-content: center; align-items: center; min-height: 100vh; padding: 10vh 20px; box-sizing: border-box; }
+        #displayArea { display: none; justify-content: center; align-items: center; min-height: 100vh; padding: 10vh 20px; box-sizing: border-box; position: relative; }
+        #displayArea::before { content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-size: var(--bg-image-size, cover); background-position: var(--bg-image-position, center); background-image: var(--bg-image); background-repeat: no-repeat; opacity: var(--bg-image-opacity, 1); z-index: -1; pointer-events: none; }
         body.reading-active #displayArea { display: flex; padding-top: calc(10vh + 60px); }
         
         #globalCursor { 
@@ -53,6 +54,10 @@
 
         .color-controls { display: flex; gap: 10px; align-items: center; }
         .color-controls input[type="color"] { width: 50px; height: 40px; border: none; border-radius: 6px; cursor: pointer; }
+        
+        .bg-image-controls { display: flex; flex-direction: column; gap: 10px; }
+        .bg-image-controls input[type="file"] { padding: 6px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; }
+        .bg-image-row { display: flex; gap: 10px; }
 
         #displayArea.scroll-mode { display: flex; flex-direction: column; padding: 40px 20px; overflow-y: hidden; height: 100vh; justify-content: flex-start; align-items: center; }
         #displayArea.scroll-mode .sloka-container { margin-bottom: 40px; opacity: 1 !important; animation: pageBlurIn 0.5s ease-in-out; }
@@ -70,7 +75,7 @@
 
         /* Rolling Mode styles */
         #displayArea.rolling-mode { display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden; position: relative; height: 100vh; }
-        .rolling-container { position: absolute; top: 0; width: 100%; text-align: center; white-space: pre-wrap; word-wrap: break-word; left: 0; right: 0; transition: none; will-change: transform; transform: translateZ(0); backface-visibility: hidden; }
+        .rolling-container { position: absolute; top: 0; width: 100%; text-align: center; white-space: pre-wrap; word-wrap: break-word; left: 0; right: 0; will-change: transform; transform-origin: top left; contain: layout style paint; }
         .rolling-line { font-size: var(--font-size); margin: 0.6em 0; line-height: 1.4; color: var(--text-color); padding: 0 20px; white-space: pre-wrap; }
         .rolling-line.empty { margin: 1.2em 0; }
 
@@ -131,6 +136,25 @@
                 <input type="checkbox" id="useSampleText" style="cursor: pointer;">
                 <span>Use sample text (local testing)</span>
             </label>
+        </div>
+        <div class="option-group">
+            <span>Background Image</span>
+            <div class="bg-image-controls">
+                <input type="file" id="bgImageInput" accept="image/*" title="Select background image">
+                <div class="bg-image-row">
+                    <label style="flex: 1;">Opacity: <span id="bgOpacityValue">100</span>%</label>
+                    <input type="range" id="bgOpacity" min="0" max="100" value="100" style="flex: 2;">
+                </div>
+                <select id="bgPosition" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                    <option value="center">Align: Center</option>
+                    <option value="left">Align: Left</option>
+                    <option value="right">Align: Right</option>
+                </select>
+                <select id="bgSize" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                    <option value="cover">Cover</option>
+                    <option value="contain">Fit</option>
+                </select>
+            </div>
         </div>
     </div>
     <button onclick="startReading()" style="width:100%; padding:15px; background:#34a853; color:white; border:none; border-radius:8px; cursor:pointer;">Start Reading</button>
@@ -222,6 +246,70 @@
         } catch (err) {
             log.warn('Draft save failed', err);
         }
+    }
+
+    function compressImage(imageData, maxWidth = 2048, maxHeight = 2048, quality = 0.8) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                let width = img.width;
+                let height = img.height;
+                
+                // Scale down if too large
+                if (width > maxWidth || height > maxHeight) {
+                    const scale = Math.min(maxWidth / width, maxHeight / height);
+                    width = Math.round(width * scale);
+                    height = Math.round(height * scale);
+                }
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                const compressed = canvas.toDataURL('image/jpeg', quality);
+                resolve(compressed);
+            };
+            img.onerror = () => {
+                log.warn('Image compression failed, using original');
+                resolve(imageData);
+            };
+            img.src = imageData;
+        });
+    }
+
+    function saveBackgroundImage(imageData) {
+        try {
+            localStorage.setItem('slokaReader.bgImage.v1', imageData);
+            log.info('Background image saved');
+        } catch (err) {
+            log.warn('Background image save failed', err);
+        }
+    }
+
+    function restoreBackgroundImage() {
+        try {
+            const saved = localStorage.getItem('slokaReader.bgImage.v1');
+            if (saved) {
+                applyBackgroundImage(saved);
+                log.info('Background image restored from local storage');
+            }
+        } catch (err) {
+            log.warn('Background image restore failed', err);
+        }
+    }
+
+    function applyBackgroundImage(imageData) {
+        const displayArea = document.getElementById('displayArea');
+        if (!displayArea) return;
+        const opacity = (document.getElementById('bgOpacity')?.value || 100) / 100;
+        const position = document.getElementById('bgPosition')?.value || 'center';
+        const size = document.getElementById('bgSize')?.value || 'cover';
+        displayArea.style.setProperty('--bg-image', `url('${imageData}')`);
+        displayArea.style.setProperty('--bg-image-opacity', opacity);
+        displayArea.style.setProperty('--bg-image-position', position);
+        displayArea.style.setProperty('--bg-image-size', size);
     }
 
     function restoreDraftIfAvailable() {
@@ -751,7 +839,7 @@
         area.appendChild(container);
         
         // Start position: container begins off-screen at the bottom
-        container.style.transform = `translateY(${window.innerHeight}px) translateZ(0)`;
+        container.style.transform = `translate3d(0, ${window.innerHeight}px, 0)`;
         
         // Calculate total height - wait for layout
         setTimeout(() => {
@@ -794,9 +882,8 @@
             
             // Linear scroll for rolling credits
             const currentY = startY - (totalScrollDistance * progress);
-            // Round to prevent sub-pixel rendering causing shaking
-            const roundedY = Math.round(currentY);
-            container.style.transform = `translateY(${roundedY}px) translateZ(0)`;
+            const roundedY = Math.round(currentY * 10) / 10;
+            container.style.transform = `translate3d(0, ${roundedY}px, 0)`;
             
             // Keep wake lock active while rolling
             if (!wakeLock && navigator.wakeLock) {
@@ -807,7 +894,11 @@
                 requestAnimationFrame(animate);
             } else {
                 // Animation complete - last line is centered
-                container.style.transform = `translateY(${Math.round(endY)}px) translateZ(0)`;
+                container.style.transform = `translate3d(0, ${endY}px, 0)`;
+                const displayArea = document.getElementById('displayArea');
+                if (displayArea) {
+                    displayArea.style.setProperty('--bg-image-opacity', '1');
+                }
                 log.info('Rolling animation completed - last line centered');
                 
                 setTimeout(() => {
@@ -827,7 +918,11 @@
         isReading = false;
         clearTimeout(charTimeout);
         document.body.classList.remove('reading-active');
-        document.getElementById('displayArea').innerHTML = '';
+        const displayArea = document.getElementById('displayArea');
+        if (displayArea) {
+            displayArea.innerHTML = '';
+            displayArea.style.setProperty('--bg-image-opacity', '1');
+        }
         
         // Remove cursor element
         const cursor = document.getElementById('globalCursor');
@@ -874,6 +969,57 @@
     document.getElementById('cursorPicker')?.addEventListener('input', (e) => {
         document.documentElement.style.setProperty('--cursor-color', e.target.value);
         log.debug('Cursor color changed', { newColor: e.target.value });
+    });
+
+    // Background image handling
+    const bgImageInput = document.getElementById('bgImageInput');
+    const bgOpacity = document.getElementById('bgOpacity');
+    const bgPosition = document.getElementById('bgPosition');
+    const bgSize = document.getElementById('bgSize');
+
+    bgImageInput?.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            const imageData = event.target?.result;
+            if (imageData) {
+                try {
+                    const compressed = await compressImage(imageData);
+                    saveBackgroundImage(compressed);
+                    applyBackgroundImage(compressed);
+                    log.info('Background image loaded and compressed');
+                } catch (err) {
+                    log.error('Failed to process background image', err);
+                }
+            }
+        };
+        reader.readAsDataURL(file);
+    });
+
+    bgOpacity?.addEventListener('input', (e) => {
+        document.getElementById('bgOpacityValue').textContent = e.target.value;
+        const saved = localStorage.getItem('slokaReader.bgImage.v1');
+        if (saved) {
+            applyBackgroundImage(saved);
+        }
+        log.debug('Background opacity changed', { newOpacity: e.target.value });
+    });
+
+    bgPosition?.addEventListener('change', (e) => {
+        const saved = localStorage.getItem('slokaReader.bgImage.v1');
+        if (saved) {
+            applyBackgroundImage(saved);
+        }
+        log.debug('Background position changed', { newPosition: e.target.value });
+    });
+
+    bgSize?.addEventListener('change', (e) => {
+        const saved = localStorage.getItem('slokaReader.bgImage.v1');
+        if (saved) {
+            applyBackgroundImage(saved);
+        }
+        log.debug('Background size changed', { newSize: e.target.value });
     });
 
     // Draft persistence + unsaved changes warning
@@ -967,6 +1113,7 @@
 
         restoreDraftIfAvailable();
         applySampleTextIfRequested();
+        restoreBackgroundImage();
         log.info('Responsive defaults set', { screenWidth: width, fontSize: defaultFontSize });
     });
 
