@@ -35,9 +35,9 @@
         .sloka-container.visible { opacity: 1; }
         .sloka-container.fade-out { opacity: 0; filter: blur(8px); }
         
-        .line-row { display: block; white-space: normal; word-break: keep-all; overflow-wrap: break-word; margin-bottom: 16px; min-height: 1.2em; position: relative; }
+        .line-row { display: block; white-space: normal; word-break: keep-all; overflow-wrap: normal; hyphens: none; margin-bottom: 16px; min-height: 1.2em; position: relative; }
         .char-span { font-size: var(--font-size); display: inline; white-space: pre; line-height: 1.4; position: relative; }
-        .word-span { display: inline-block; white-space: nowrap; }
+        .word-span { display: inline-block; white-space: nowrap; word-break: keep-all; overflow-wrap: normal; hyphens: none; }
         
         /* Typewriter mode styles - exit transitions only */
         .sloka-container.typewriter-mode { animation: none; text-align: center; }
@@ -101,6 +101,14 @@
         .entrance-rolling { animation: none; } /* Handled by JS */
         
         #displayArea { display: none; justify-content: center; align-items: center; min-height: 100vh; padding: 10vh 20px; box-sizing: border-box; position: relative; }
+        body.portrait-mode #displayArea {
+            width: min(100vw, 56.25vh);
+            aspect-ratio: 9 / 16;
+            height: auto;
+            min-height: unset;
+            margin: 0 auto;
+            padding: 8vh 12px;
+        }
         #displayArea::before { content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-size: var(--bg-image-size, cover); background-position: var(--bg-image-position, center); background-image: var(--bg-image); background-repeat: no-repeat; opacity: var(--bg-image-opacity, 1); z-index: -1; pointer-events: none; }
         body.reading-active #displayArea { display: flex; padding-top: calc(10vh + 60px); }
         
@@ -120,6 +128,11 @@
         .bg-image-controls { display: flex; flex-direction: column; gap: 10px; }
         .bg-image-controls input[type="file"] { padding: 6px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; }
         .bg-image-row { display: flex; gap: 10px; }
+        .recording-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .recording-controls button { padding: 8px 12px; border: none; border-radius: 8px; cursor: pointer; color: #fff; }
+        #recordStartBtn { background: #1a73e8; }
+        #recordStopBtn { background: #ea4335; }
+        #recordStatus { font-size: 12px; color: #555; }
 
         #displayArea.scroll-mode { display: flex; flex-direction: column; padding: 40px 20px; overflow-y: hidden; height: 100vh; justify-content: flex-start; align-items: center; }
         #displayArea.scroll-mode .sloka-container { margin-bottom: 40px; opacity: 1 !important; animation: pageBlurIn 0.5s ease-in-out; }
@@ -138,12 +151,37 @@
         /* Rolling Mode styles */
         #displayArea.rolling-mode { display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden; position: relative; height: 100vh; }
         .rolling-container { position: absolute; top: 0; width: 100%; text-align: center; white-space: pre-wrap; word-wrap: break-word; left: 0; right: 0; will-change: transform; transform-origin: top left; contain: layout style paint; }
-        .rolling-line { font-size: var(--font-size); margin: 0.6em 0; line-height: 1.4; color: var(--text-color); padding: 0 20px; white-space: pre-wrap; text-align: var(--text-align, center); word-break: keep-all; overflow-wrap: break-word; }
+        .rolling-line { font-size: var(--font-size); margin: 0.6em 0; line-height: 1.4; color: var(--text-color); padding: 0 20px; white-space: pre-wrap; text-align: var(--text-align, center); word-break: keep-all; overflow-wrap: normal; hyphens: none; }
         .rolling-line.empty { margin: 1.2em 0; }
 
         #stopBtn { position: fixed; bottom: 30px; right: 30px; background: #ea4335; color: white; border: none; padding: 15px 30px; border-radius: 50px; cursor: pointer; display: none; z-index: 1000; opacity: 0; transition: opacity 0.3s ease; pointer-events: auto; }
         body.reading-active #stopBtn { display: block; }
         body.reading-active.show-reset #stopBtn { opacity: 1; }
+        
+        /* Kids Learning Mode visual cues */
+        .kids-cue { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); font-size: 32px; font-weight: bold; color: #333; opacity: 0; pointer-events: none; z-index: 10000; animation: cueFadeIn 1s ease-out forwards; background: rgba(255, 255, 255, 0.95); padding: 15px 30px; border-radius: 16px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4); }
+        @keyframes cueFadeIn { 0% { opacity: 0; transform: translateX(-50%) scale(0.5); } 50% { opacity: 1; transform: translateX(-50%) scale(1.1); } 100% { opacity: 1; transform: translateX(-50%) scale(1); } }
+        @keyframes cueFadeOut { 0% { opacity: 1; transform: translateX(-50%) scale(1); } 100% { opacity: 0; transform: translateX(-50%) scale(0.8); } }
+        .kids-cue.fade-out { animation: cueFadeOut 0.8s ease-in forwards; }
+        
+        .kids-instruction { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 28px; font-weight: bold; color: #333; z-index: 10000; background: rgba(255, 255, 255, 0.98); padding: 40px 50px; border-radius: 20px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5); text-align: center; line-height: 1.6; max-width: 600px; animation: instructionZoom 1s ease-out; }
+        @keyframes instructionZoom { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); } 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+        .kids-instruction .title { font-size: 36px; color: #1a73e8; margin-bottom: 20px; }
+        .kids-instruction .message { font-size: 24px; color: #555; }
+        .kids-phase-cue { white-space: nowrap; text-align: center; }
+        body.kids-cue-active #displayArea { color: transparent !important; }
+        body.kids-cue-active #displayArea .char-span,
+        body.kids-cue-active #displayArea .word-span,
+        body.kids-cue-active #displayArea .line-row { color: transparent !important; }
+        body.kids-cue-active #globalCursor { opacity: 0 !important; }
+        body.kids-cue-active #displayArea * { pointer-events: none; }
+
+        .clap { position: fixed; font-size: 48px; z-index: 10001; animation: clapFloat 1.6s ease-out forwards; pointer-events: none; }
+        @keyframes clapFloat {
+            0% { opacity: 0; transform: translateY(20px) scale(0.6); }
+            20% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-60px) scale(1.2); }
+        }
         
         /* Watermark branding */
         #branding-watermark { position: fixed; top: 20px; right: 30px; z-index: 999; text-align: center; font-family: 'NTR', sans-serif; line-height: 1.3; pointer-events: none; letter-spacing: 0.5px; }
@@ -165,6 +203,7 @@
                 <option value="scroll" selected>Continuous Mode</option>
                 <option value="rolling">Rolling Mode</option>
                 <option value="social">Social Media Mode</option>
+                <option value="kids">Kids Learning Mode</option>
             </select>
         </div>
         <div class="option-group" id="transitionOption">
@@ -243,6 +282,22 @@
                 <option value="right">Right</option>
             </select>
         </div>
+        <div class="option-group">
+            <span>Recording</span>
+            <div class="recording-controls">
+                <button id="recordStartBtn" type="button">Start Tab Recording</button>
+                <button id="recordStopBtn" type="button" disabled>Stop Recording</button>
+                <label style="display: flex; align-items: center; gap: 6px;">
+                    <input type="checkbox" id="recordFullscreen">
+                    <span>Fullscreen</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px;">
+                    <input type="checkbox" id="portraitModeToggle">
+                    <span>Portrait 9:16</span>
+                </label>
+                <span id="recordStatus">Idle</span>
+            </div>
+        </div>
         <div class="option-group" id="loopOption" style="display: none;">
             <span>Loop Count</span>
             <div class="slider-group">
@@ -266,6 +321,16 @@
                     <span>Text Glow</span>
                 </label>
             </div>
+        </div>
+        <div class="option-group" id="fontStyleOption" style="display: none;">
+            <span>Font Style (Kids Mode)</span>
+            <select id="fontStyleSelect">
+                <option value="default">Default</option>
+                <option value="bold">Bold & Large</option>
+                <option value="rounded">Rounded & Soft</option>
+                <option value="colorful">Colorful</option>
+                <option value="comic">Comic Sans Style</option>
+            </select>
         </div>
         <div class="option-group">
             <span>Colors</span>
@@ -323,6 +388,15 @@
     let readingStartTime = 0;
     let currentLoopCount = 0;
     let maxLoops = 1;
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let captureStream = null;
+    let isRecording = false;
+    let kidsCurrentLineIdx = 0;
+    let kidsCurrentPhase = 0; // 0: individual lines, 1: full poem 1x, 2: full poem 2x, 3: full poem 2x repetition
+    let kidsAllPoems = [];
+    let kidsLoopCount = 0;
+    let kidsCurrentPoem = [];
     const segmenter = new Intl.Segmenter('te', { granularity: 'grapheme' });
     const DRAFT_STORAGE_KEY = 'slokaReader.draft.v1';
     const SAMPLE_TEXT = `శుక్లాం బరధరం-విఀష్ణుం శశివర్ణం చతుర్భుజమ్ ।
@@ -393,10 +467,14 @@
 
     function saveDraft(text) {
         try {
-            localStorage.setItem(DRAFT_STORAGE_KEY, text);
-            lastDraftText = text;
+            if (text !== undefined && text !== null) {
+                localStorage.setItem(DRAFT_STORAGE_KEY, text);
+                lastDraftText = text;
+                console.log('Draft saved:', text.length, 'chars');
+            }
         } catch (err) {
             log.warn('Draft save failed', err);
+            console.error('Save error:', err);
         }
     }
 
@@ -467,18 +545,23 @@
     function restoreDraftIfAvailable() {
         try {
             const textInput = document.getElementById('textInput');
-            if (!textInput) return;
+            if (!textInput) {
+                console.error('textInput element not found!');
+                return;
+            }
 
             const saved = localStorage.getItem(DRAFT_STORAGE_KEY);
-            if (saved && textInput.value.trim().length === 0) {
+            console.log('Restoring draft:', saved ? saved.length + ' chars' : 'nothing saved');
+            if (saved && saved.trim().length > 0) {
                 textInput.value = saved;
-                log.info('Draft restored from local storage');
+                log.info('Draft restored from local storage', { length: saved.length });
             }
 
             lastDraftText = textInput.value;
             hasUnsavedChanges = false;
         } catch (err) {
             log.warn('Draft restore failed', err);
+            console.error('Restore error:', err);
         }
     }
 
@@ -510,8 +593,10 @@
 
     function startReading() {
         const text = document.getElementById('textInput').value.trim();
+        console.log('startReading called, text length:', text.length);
         if (!text) {
             log.warn('Start reading called with empty text');
+            alert('Please enter some text to read!');
             return;
         }
 
@@ -567,6 +652,28 @@
             document.getElementById('displayArea').classList.remove('rolling-mode');
             log.info('Starting Social Media mode with 2-second delay');
             setTimeout(() => renderSocialMediaSloka(), 2000);
+        } else if (mode === 'kids') {
+            const instructionDiv = document.createElement('div');
+            instructionDiv.className = 'kids-instruction';
+            instructionDiv.innerHTML = '<div class="title">📚 Sloka Time!</div><div class="message">Listen first, then repeat during the silence.</div>';
+            document.body.appendChild(instructionDiv);
+
+            slokas = parseSlokas(text);
+            kidsAllPoems = slokas;
+            currentSlokaIdx = 0;
+            kidsCurrentLineIdx = 0;
+            kidsCurrentPhase = 0;
+            kidsLoopCount = 0;
+            isReading = true;
+            document.body.classList.add('reading-active');
+            document.getElementById('displayArea').classList.remove('scroll-mode');
+            document.getElementById('displayArea').classList.remove('rolling-mode');
+            applyKidsFontStyle();
+            log.info('Starting Kids Learning mode with instruction overlay');
+            setTimeout(() => {
+                instructionDiv.remove();
+                renderKidsSloka();
+            }, 5000);
         } else if (mode === 'unifocus') {
             slokas = parseSlokas(text);
             currentSlokaIdx = 0;
@@ -635,6 +742,1003 @@
         
         container.style.textShadow = textShadowValue;
         container.style.filter = filterValue;
+    }
+
+    function getSupportedMimeType() {
+        const types = [
+            'video/webm;codecs=vp9',
+            'video/webm;codecs=vp8',
+            'video/webm'
+        ];
+        for (const type of types) {
+            if (MediaRecorder.isTypeSupported(type)) return type;
+        }
+        return '';
+    }
+
+    async function startTabRecording() {
+        if (isRecording) return;
+        if (!navigator.mediaDevices?.getDisplayMedia) {
+            log.warn('Tab recording not supported in this browser');
+            updateRecordingStatus('Not supported');
+            return;
+        }
+
+        try {
+            const fullscreenRequested = document.getElementById('recordFullscreen')?.checked;
+            if (fullscreenRequested && !document.fullscreenElement) {
+                await document.documentElement.requestFullscreen();
+            }
+
+            const stream = await navigator.mediaDevices.getDisplayMedia({
+                video: {
+                    displaySurface: 'browser',
+                    preferCurrentTab: true
+                },
+                audio: false
+            });
+
+            captureStream = stream;
+            recordedChunks = [];
+
+            const mimeType = getSupportedMimeType();
+            mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data && event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: mimeType || 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `sloka-recording-${Date.now()}.webm`;
+                a.click();
+                URL.revokeObjectURL(url);
+                recordedChunks = [];
+            };
+
+            stream.getVideoTracks()[0].addEventListener('ended', () => {
+                stopTabRecording();
+            });
+
+            // Request periodic data to avoid empty recordings in some browsers
+            mediaRecorder.start(1000);
+            isRecording = true;
+            updateRecordingStatus('Recording...');
+            toggleRecordingButtons(true);
+            log.info('Tab recording started');
+        } catch (err) {
+            log.error('Failed to start tab recording', err);
+            updateRecordingStatus('Failed to start');
+            toggleRecordingButtons(false);
+        }
+    }
+
+    function stopTabRecording() {
+        if (!isRecording) return;
+
+        try {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            captureStream?.getTracks().forEach((track) => track.stop());
+            captureStream = null;
+            isRecording = false;
+            updateRecordingStatus('Saved');
+            toggleRecordingButtons(false);
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(() => {});
+            }
+            log.info('Tab recording stopped');
+        } catch (err) {
+            log.error('Failed to stop tab recording', err);
+        }
+    }
+
+    function updateRecordingStatus(statusText) {
+        const statusEl = document.getElementById('recordStatus');
+        if (statusEl) statusEl.textContent = statusText;
+    }
+
+    function toggleRecordingButtons(isActive) {
+        const startBtn = document.getElementById('recordStartBtn');
+        const stopBtn = document.getElementById('recordStopBtn');
+        if (startBtn) startBtn.disabled = isActive;
+        if (stopBtn) stopBtn.disabled = !isActive;
+    }
+    
+    function applyKidsFontStyle() {
+        const fontStyle = document.getElementById('fontStyleSelect')?.value || 'default';
+        const container = document.getElementById('displayArea');
+        if (!container) return;
+        
+        // Reset all styles first
+        container.style.fontWeight = 'normal';
+        container.style.letterSpacing = 'normal';
+        container.style.fontFamily = "'NTR', sans-serif";
+        container.style.textShadow = 'none';
+        
+        switch(fontStyle) {
+            case 'bold':
+                container.style.fontWeight = 'bold';
+                container.style.fontSize = 'calc(var(--font-size) * 1.2)';
+                break;
+            case 'rounded':
+                container.style.fontFamily = "'Trebuchet MS', 'Comic Sans MS', sans-serif";
+                container.style.letterSpacing = '0.5px';
+                break;
+            case 'colorful':
+                container.style.textShadow = '2px 2px 4px rgba(0,0,0,0.3)';
+                break;
+            case 'comic':
+                container.style.fontFamily = "'Comic Sans MS', cursive";
+                container.style.fontWeight = 'bold';
+                container.style.fontSize = 'calc(var(--font-size) * 1.15)';
+                break;
+        }
+    }
+    
+    function showKidsCue(text) {
+        // Remove any existing cue
+        const existing = document.getElementById('kidsCue');
+        if (existing) existing.remove();
+        
+        const cue = document.createElement('div');
+        cue.id = 'kidsCue';
+        cue.className = 'kids-cue';
+        cue.textContent = text;
+        document.body.appendChild(cue);
+        
+        // Keep visible longer, remove after 3.5 seconds
+        setTimeout(() => {
+            cue.classList.add('fade-out');
+            setTimeout(() => cue.remove(), 800);
+        }, 3500);
+    }
+
+    function showPhaseCue(message, onDone, duration = 2500) {
+        const existing = document.getElementById('kidsPhaseCue');
+        if (existing) existing.remove();
+
+        document.body.classList.add('kids-cue-active');
+
+        const cue = document.createElement('div');
+        cue.id = 'kidsPhaseCue';
+        cue.className = 'kids-instruction kids-phase-cue';
+        cue.innerHTML = `<div class="title">${message}</div>`;
+        document.body.appendChild(cue);
+
+        setTimeout(() => {
+            cue.remove();
+            document.body.classList.remove('kids-cue-active');
+            if (onDone) onDone();
+        }, duration);
+    }
+
+    function showClapsCelebration(onDone, duration = 10000) {
+        document.body.classList.add('kids-cue-active');
+
+        const awesome = document.createElement('div');
+        awesome.className = 'kids-instruction';
+        awesome.innerHTML = '<div class="title">Awesome... 👏</div><div class="message">Practice daily</div><div class="message">🙏 Harih Om 🙏</div>';
+        document.body.appendChild(awesome);
+
+        const claps = [];
+        const spawnClap = () => {
+            const clap = document.createElement('div');
+            clap.className = 'clap';
+            clap.textContent = '👏';
+            clap.style.left = Math.floor(10 + Math.random() * 80) + 'vw';
+            clap.style.top = Math.floor(40 + Math.random() * 30) + 'vh';
+            clap.style.animationDelay = (Math.random() * 0.4) + 's';
+            document.body.appendChild(clap);
+            claps.push(clap);
+        };
+
+        let cancelled = false;
+        const cleanup = () => {
+            if (cancelled) return;
+            cancelled = true;
+            clearInterval(clapInterval);
+            clearTimeout(stopClapsTimeout);
+            clearTimeout(doneTimeout);
+            awesome.remove();
+            claps.forEach((c) => c.remove());
+            document.body.classList.remove('kids-cue-active');
+        };
+
+        const clapInterval = setInterval(spawnClap, 220);
+        const stopClapsTimeout = setTimeout(() => clearInterval(clapInterval), Math.max(600, duration - 600));
+
+        const doneTimeout = setTimeout(() => {
+            cleanup();
+            if (onDone) onDone();
+        }, duration);
+
+        const stopBtn = document.getElementById('stopBtn');
+        if (stopBtn) {
+            const onStop = () => {
+                cleanup();
+                stopBtn.removeEventListener('click', onStop);
+            };
+            stopBtn.addEventListener('click', onStop);
+        }
+    }
+
+    function getKidsSpeedMultiplier() {
+        const speedValue = parseFloat(document.getElementById('speedControl')?.value || '1');
+        return Number.isFinite(speedValue) && speedValue > 0 ? speedValue : 1;
+    }
+    
+    function animateKidsTwoLineGroups(sequence, container, speedMultiplier) {
+        // Group lines into pairs (lines 0-1, then 2-3) and animate each group twice
+        if (!isReading || sequence.length === 0) {
+            setTimeout(() => renderKidsSloka(), 1000);
+            return;
+        }
+        
+        acquireWakeLock();
+        
+        // Find line boundaries
+        const charPositions = [];
+        const lineIndices = [];
+        let currentLineStart = 0;
+        let lastTop = null;
+        
+        for (let i = 0; i < sequence.length; i++) {
+            const charEl = document.getElementById(sequence[i].id);
+            if (charEl) {
+                const charRect = charEl.getBoundingClientRect();
+                const charTop = charRect.bottom - 10;
+                charPositions.push({ left: charRect.left, top: charTop });
+                
+                if (lastTop !== null && Math.abs(charTop - lastTop) > 5) {
+                    lineIndices.push({ start: currentLineStart, end: i - 1 });
+                    currentLineStart = i;
+                }
+                lastTop = charTop;
+            }
+        }
+        lineIndices.push({ start: currentLineStart, end: sequence.length - 1 });
+        
+        // Group lines into pairs
+        const lineGroups = [];
+        for (let i = 0; i < lineIndices.length; i += 2) {
+            if (i + 1 < lineIndices.length) {
+                lineGroups.push([lineIndices[i], lineIndices[i + 1]]);
+            } else {
+                lineGroups.push([lineIndices[i]]);
+            }
+        }
+        
+        let groupIdx = 0;
+        const pixelsPerSecond = 50 * speedMultiplier;
+        
+        const animateNextGroup = () => {
+            if (groupIdx >= lineGroups.length) {
+                releaseWakeLock();
+                setTimeout(() => renderKidsSloka(), 500);
+                return;
+            }
+            
+            const group = lineGroups[groupIdx];
+            const groupStart = group[0].start;
+            const groupEnd = group[group.length - 1].end;
+            const groupPositions = charPositions.slice(groupStart, groupEnd + 1);
+            
+            // Calculate distance for this group
+            let groupDistance = 0;
+            for (let i = 0; i < groupPositions.length - 1; i++) {
+                const curr = groupPositions[i];
+                const next = groupPositions[i + 1];
+                groupDistance += Math.max(0, next.left - curr.left);
+            }
+            
+            const groupDuration = groupDistance > 0 ? (groupDistance / pixelsPerSecond) * 1000 : 300;
+            let passCount = 0;
+            
+            const animateGroupPass = () => {
+                passCount++;
+                
+                const animationStartTime = performance.now();
+                const updateCursor = (currentTime) => {
+                    if (!isReading) return;
+                    
+                    const elapsed = currentTime - animationStartTime;
+                    const progress = Math.min(elapsed / groupDuration, 1);
+                    const targetDistance = progress * groupDistance;
+                    
+                    let accumulatedDist = 0;
+                    let cursorPos = null;
+                    
+                    for (let i = 0; i < groupPositions.length - 1; i++) {
+                        const curr = groupPositions[i];
+                        const next = groupPositions[i + 1];
+                        const segmentDist = Math.max(0, next.left - curr.left);
+                        
+                        if (accumulatedDist + segmentDist >= targetDistance) {
+                            const segmentProgress = segmentDist > 0 ? (targetDistance - accumulatedDist) / segmentDist : 0;
+                            const interpolatedLeft = curr.left + (next.left - curr.left) * Math.min(segmentProgress, 1);
+                            cursorPos = { left: interpolatedLeft, top: curr.top };
+                            break;
+                        }
+                        accumulatedDist += segmentDist;
+                    }
+                    
+                    if (!cursorPos) {
+                        cursorPos = { left: groupPositions[groupPositions.length - 1].left, top: groupPositions[groupPositions.length - 1].top };
+                    }
+                    
+                    let cursor = document.getElementById('globalCursor');
+                    if (!cursor) {
+                        cursor = document.createElement('div');
+                        cursor.id = 'globalCursor';
+                        cursor.style.position = 'fixed';
+                        cursor.style.height = '6px';
+                        cursor.style.width = '35px';
+                        cursor.style.borderRadius = '3px';
+                        cursor.style.zIndex = '100';
+                        cursor.style.pointerEvents = 'none';
+                        document.body.appendChild(cursor);
+                    }
+                    
+                    cursor.style.left = cursorPos.left + 'px';
+                    cursor.style.top = cursorPos.top + 'px';
+                    cursor.style.background = getComputedStyle(document.documentElement).getPropertyValue('--cursor-color').trim();
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(updateCursor);
+                    } else {
+                        if (passCount < 2) {
+                            setTimeout(animateGroupPass, 300);
+                        } else {
+                            groupIdx++;
+                            setTimeout(animateNextGroup, 300);
+                        }
+                    }
+                };
+                
+                requestAnimationFrame(updateCursor);
+            };
+            
+            animateGroupPass();
+        };
+        
+        animateNextGroup();
+    }
+    
+    function renderKidsSloka() {
+        if (!isReading || currentSlokaIdx >= slokas.length) {
+            log.info('Kids learning mode complete');
+            return stopReading();
+        }
+
+        const sloka = slokas[currentSlokaIdx];
+        const numLines = sloka.length;
+
+        if (kidsCurrentPhase === 0) {
+            // Phase 0: Show individual lines with repetition (2x)
+            if (kidsCurrentLineIdx < numLines) {
+                if (kidsCurrentLineIdx === 0) {
+                    showPhaseCue('Slow chant', () => {
+                        renderKidsLine(sloka[kidsCurrentLineIdx], true);
+                        kidsCurrentLineIdx++;
+                    });
+                    return;
+                }
+                renderKidsLine(sloka[kidsCurrentLineIdx], true);
+                kidsCurrentLineIdx++;
+            } else {
+                // Move to phase 1
+                kidsCurrentPhase = 1;
+                kidsCurrentLineIdx = 0;
+                showPhaseCue('One line at a time', () => {
+                    renderKidsFullPoem(sloka, 1, 1); // Full poem, each line repeated 2x
+                });
+            }
+        } else if (kidsCurrentPhase === 1) {
+            // Phase 1: Full poem with each line repeated 2x at 2x speed
+            kidsCurrentPhase = 2;
+            showPhaseCue('Two lines at a time', () => {
+                renderKidsFullPoem(sloka, 1, 2); // Full poem, 2 lines at a time repeated
+            });
+        } else if (kidsCurrentPhase === 2) {
+            // Phase 2: Full poem with 2-line groups repeated at 2x speed
+            kidsCurrentPhase = 3;
+            showPhaseCue('Now... Full Sloka 🙂', () => {
+                renderKidsFullPoem(sloka, 1, 3); // Full poem repeated 2x
+            });
+        } else if (kidsCurrentPhase === 3) {
+            // Phase 3: Full poem repeated 2x - then move to next poem
+            renderKidsFullPoem(sloka, 2, 3);
+        }
+    }
+    
+    function renderKidsLine(line, withRepetition = true) {
+        const area = document.getElementById('displayArea');
+        area.innerHTML = '';
+        
+        const container = document.createElement('div');
+        container.className = 'sloka-container';
+        container.style.textAlign = 'center';
+        
+        const row = document.createElement('div');
+        row.className = 'line-row';
+        
+        const segments = Array.from(segmenter.segment(line));
+        const charSequence = [];
+        
+        // Group characters into words
+        let currentWord = [];
+        segments.forEach((seg, sIdx) => {
+            if (seg.segment === ' ') {
+                if (currentWord.length > 0) {
+                    const wordSpan = document.createElement('span');
+                    wordSpan.className = 'word-span';
+                    currentWord.forEach(({ segment, id }) => {
+                        const span = document.createElement('span');
+                        span.className = 'char-span';
+                        span.id = id;
+                        span.textContent = segment;
+                        wordSpan.appendChild(span);
+                        charSequence.push({ id: span.id, lineIdx: 0 });
+                    });
+                    row.appendChild(wordSpan);
+                    currentWord = [];
+                }
+                const spaceSpan = document.createElement('span');
+                spaceSpan.className = 'char-span';
+                spaceSpan.id = `kids-c-space-${sIdx}`;
+                spaceSpan.textContent = ' ';
+                row.appendChild(spaceSpan);
+                charSequence.push({ id: spaceSpan.id, lineIdx: 0 });
+            } else {
+                currentWord.push({ segment: seg.segment, id: `kids-c-${sIdx}` });
+            }
+        });
+        
+        if (currentWord.length > 0) {
+            const wordSpan = document.createElement('span');
+            wordSpan.className = 'word-span';
+            currentWord.forEach(({ segment, id }) => {
+                const span = document.createElement('span');
+                span.className = 'char-span';
+                span.id = id;
+                span.textContent = segment;
+                wordSpan.appendChild(span);
+                charSequence.push({ id: span.id, lineIdx: 0 });
+            });
+            row.appendChild(wordSpan);
+        }
+        
+        container.appendChild(row);
+        area.appendChild(container);
+        
+        setTimeout(() => {
+            container.classList.add('visible');
+            applyKidsFontStyle();
+            // Animate cursor twice
+            let passCount = 0;
+            const animatePass = () => {
+                passCount++;
+                const speed = getKidsSpeedMultiplier();
+                animateKidsLineOnce(charSequence, container, speed, () => {
+                    if (passCount < 2) {
+                        setTimeout(animatePass, 1000);
+                    } else {
+                        setTimeout(() => {
+                            renderKidsSloka();
+                        }, 500);
+                    }
+                });
+            };
+            animatePass();
+        }, 100);
+    }
+    
+    function renderKidsFullPoem(sloka, speedMultiplier, phase) {
+        const area = document.getElementById('displayArea');
+        area.innerHTML = '';
+        
+        const container = document.createElement('div');
+        container.className = 'sloka-container';
+        
+        const charSequence = [];
+        
+        sloka.forEach((line, lIdx) => {
+            const row = document.createElement('div');
+            row.className = 'line-row';
+            
+            if (line.trim() === "") {
+                row.style.height = "1.5em";
+                container.appendChild(row);
+            } else {
+                const segments = Array.from(segmenter.segment(line));
+                
+                // Group characters into words
+                let currentWord = [];
+                segments.forEach((seg, sIdx) => {
+                    if (seg.segment === ' ') {
+                        if (currentWord.length > 0) {
+                            const wordSpan = document.createElement('span');
+                            wordSpan.className = 'word-span';
+                            currentWord.forEach(({ segment, id }) => {
+                                const span = document.createElement('span');
+                                span.className = 'char-span';
+                                span.id = id;
+                                span.textContent = segment;
+                                wordSpan.appendChild(span);
+                                charSequence.push({ id: span.id, lineIdx: lIdx });
+                            });
+                            row.appendChild(wordSpan);
+                            currentWord = [];
+                        }
+                        const spaceSpan = document.createElement('span');
+                        spaceSpan.className = 'char-span';
+                        spaceSpan.id = `kids-c-${lIdx}-space-${sIdx}`;
+                        spaceSpan.textContent = ' ';
+                        row.appendChild(spaceSpan);
+                        charSequence.push({ id: spaceSpan.id, lineIdx: lIdx });
+                    } else {
+                        currentWord.push({ segment: seg.segment, id: `kids-c-${lIdx}-${sIdx}` });
+                    }
+                });
+                
+                if (currentWord.length > 0) {
+                    const wordSpan = document.createElement('span');
+                    wordSpan.className = 'word-span';
+                    currentWord.forEach(({ segment, id }) => {
+                        const span = document.createElement('span');
+                        span.className = 'char-span';
+                        span.id = id;
+                        span.textContent = segment;
+                        wordSpan.appendChild(span);
+                        charSequence.push({ id: span.id, lineIdx: lIdx });
+                    });
+                    row.appendChild(wordSpan);
+                }
+                container.appendChild(row);
+            }
+        });
+
+        area.appendChild(container);
+        
+        setTimeout(() => {
+            container.classList.add('visible');
+            applyKidsFontStyle();
+            const speed = getKidsSpeedMultiplier();
+            if (phase === 1) {
+                // Phase 1: Each line repeated 2x
+                animateKidsCursor(charSequence, container, speed, true);
+            } else if (phase === 2) {
+                // Phase 2: Two-line groups with repetition at 2x speed
+                animateKidsTwoLineGroups(charSequence, container, speed);
+            } else if (phase === 3) {
+                // Phase 3: Full poem 2x repetition (no per-line repetition)
+                animateKidsFullPoem(charSequence, container, speed);
+            }
+        }, 100);
+    }
+    
+    function animateKidsLineOnce(sequence, container, speedMultiplier, callback) {
+        if (!isReading || sequence.length === 0) {
+            if (callback) callback();
+            return;
+        }
+        
+        acquireWakeLock();
+
+        // Create or reuse fixed positioned cursor
+        let cursor = document.getElementById('globalCursor');
+        if (!cursor) {
+            cursor = document.createElement('div');
+            cursor.id = 'globalCursor';
+            cursor.style.position = 'fixed';
+            cursor.style.height = '6px';
+            cursor.style.width = '35px';
+            cursor.style.borderRadius = '3px';
+            cursor.style.zIndex = '100';
+            cursor.style.pointerEvents = 'none';
+            document.body.appendChild(cursor);
+        }
+
+        // Pre-calculate all character positions
+        const charPositions = [];
+        
+        for (let i = 0; i < sequence.length; i++) {
+            const charEl = document.getElementById(sequence[i].id);
+            if (charEl) {
+                const charRect = charEl.getBoundingClientRect();
+                charPositions.push({
+                    left: charRect.left,
+                    top: charRect.bottom - 10
+                });
+            }
+        }
+
+        if (charPositions.length === 0) {
+            if (callback) callback();
+            return;
+        }
+
+        // Calculate total horizontal distance (sum of all left-to-right movements on each line)
+        let totalDistance = 0;
+        for (let i = 0; i < charPositions.length - 1; i++) {
+            const curr = charPositions[i];
+            const next = charPositions[i + 1];
+            // Only count horizontal distance if on same line
+            if (Math.abs(next.top - curr.top) < 5) {
+                totalDistance += Math.max(0, next.left - curr.left);
+            } else {
+                // Line break - jump to next line's first character
+                totalDistance += Math.max(0, next.left - charPositions[0].left);
+            }
+        }
+
+        const pixelsPerSecond = 50 * speedMultiplier;
+        const totalDuration = totalDistance > 0 ? (totalDistance / pixelsPerSecond) * 1000 : 500;
+        const animationStartTime = performance.now();
+
+        const updateCursorPosition = (currentTime) => {
+            if (!isReading) return;
+
+            const elapsed = currentTime - animationStartTime;
+            const progress = Math.min(elapsed / totalDuration, 1);
+            const targetDistance = progress * totalDistance;
+
+            // Find cursor position based on distance traveled
+            let accumulatedDist = 0;
+            let cursorPos = null;
+            
+            for (let i = 0; i < charPositions.length - 1; i++) {
+                const curr = charPositions[i];
+                const next = charPositions[i + 1];
+                let segmentDist = 0;
+                
+                if (Math.abs(next.top - curr.top) < 5) {
+                    // Same line - horizontal distance
+                    segmentDist = Math.max(0, next.left - curr.left);
+                } else {
+                    // Line break - distance to start of next line
+                    segmentDist = Math.max(0, next.left - charPositions[0].left);
+                }
+                
+                if (accumulatedDist + segmentDist >= targetDistance) {
+                    // Found the segment
+                    const segmentProgress = segmentDist > 0 ? (targetDistance - accumulatedDist) / segmentDist : 0;
+                    const interpolatedLeft = curr.left + (next.left - curr.left) * Math.min(segmentProgress, 1);
+                    cursorPos = { left: interpolatedLeft, top: curr.top };
+                    break;
+                }
+                accumulatedDist += segmentDist;
+            }
+            
+            // Fallback to last position
+            if (!cursorPos) {
+                cursorPos = { left: charPositions[charPositions.length - 1].left, top: charPositions[charPositions.length - 1].top };
+            }
+
+            const cursor = document.getElementById('globalCursor');
+            if (cursor) {
+                cursor.style.left = cursorPos.left + 'px';
+                cursor.style.top = cursorPos.top + 'px';
+                cursor.style.background = getComputedStyle(document.documentElement).getPropertyValue('--cursor-color').trim();
+            }
+
+            if (progress < 1) {
+                requestAnimationFrame(updateCursorPosition);
+            } else {
+                releaseWakeLock();
+                if (callback) callback();
+            }
+        };
+
+        requestAnimationFrame(updateCursorPosition);
+    }
+    
+    function animateKidsCursor(sequence, container, speedMultiplier, repeatPerLine = false) {
+        if (!isReading || sequence.length === 0) {
+            setTimeout(() => {
+                renderKidsSloka();
+            }, 1000);
+            return;
+        }
+        
+        acquireWakeLock();
+
+        // Pre-calculate all character positions and find line boundaries
+        const charPositions = [];
+        const lineIndices = []; // Track start and end indices of each line
+        let currentLineStart = 0;
+        let lastTop = null;
+        
+        for (let i = 0; i < sequence.length; i++) {
+            const charEl = document.getElementById(sequence[i].id);
+            if (charEl) {
+                const charRect = charEl.getBoundingClientRect();
+                const charTop = charRect.bottom - 10;
+                charPositions.push({
+                    left: charRect.left,
+                    top: charTop
+                });
+                
+                // Detect line change
+                if (lastTop !== null && Math.abs(charTop - lastTop) > 5) {
+                    lineIndices.push({ start: currentLineStart, end: i - 1 });
+                    currentLineStart = i;
+                }
+                lastTop = charTop;
+            }
+        }
+        lineIndices.push({ start: currentLineStart, end: sequence.length - 1 });
+
+        if (charPositions.length === 0) {
+            setTimeout(() => {
+                renderKidsSloka();
+            }, 1000);
+            return;
+        }
+
+        // Create or reuse cursor
+        let cursor = document.getElementById('globalCursor');
+        if (!cursor) {
+            cursor = document.createElement('div');
+            cursor.id = 'globalCursor';
+            cursor.style.position = 'fixed';
+            cursor.style.height = '6px';
+            cursor.style.width = '35px';
+            cursor.style.borderRadius = '3px';
+            cursor.style.zIndex = '100';
+            cursor.style.pointerEvents = 'none';
+            document.body.appendChild(cursor);
+        }
+
+        const pixelsPerSecond = 50 * speedMultiplier;
+        
+        // Animate line by line
+        let lineIdx = 0;
+        
+        const animateNextLine = () => {
+            if (lineIdx >= lineIndices.length) {
+                // All lines done
+                releaseWakeLock();
+                setTimeout(() => {
+                    renderKidsSloka();
+                }, 500);
+                return;
+            }
+            
+            const lineBounds = lineIndices[lineIdx];
+            const lineCharPositions = charPositions.slice(lineBounds.start, lineBounds.end + 1);
+            
+            // Calculate distance for this line only
+            let lineDistance = 0;
+            for (let i = 0; i < lineCharPositions.length - 1; i++) {
+                const curr = lineCharPositions[i];
+                const next = lineCharPositions[i + 1];
+                lineDistance += Math.max(0, next.left - curr.left);
+            }
+            
+            const lineDuration = lineDistance > 0 ? (lineDistance / pixelsPerSecond) * 1000 : 300;
+            
+            // Animate this line (potentially with repetition)
+            let linePass = 0;
+            const animateLinePass = () => {
+                linePass++;
+                const animationStartTime = performance.now();
+
+                const updateCursorPosition = (currentTime) => {
+                    if (!isReading) return;
+
+                    const elapsed = currentTime - animationStartTime;
+                    const progress = Math.min(elapsed / lineDuration, 1);
+                    const targetDistance = progress * lineDistance;
+
+                    // Find cursor position in this line
+                    let accumulatedDist = 0;
+                    let cursorPos = null;
+                    
+                    for (let i = 0; i < lineCharPositions.length - 1; i++) {
+                        const curr = lineCharPositions[i];
+                        const next = lineCharPositions[i + 1];
+                        const segmentDist = Math.max(0, next.left - curr.left);
+                        
+                        if (accumulatedDist + segmentDist >= targetDistance) {
+                            const segmentProgress = segmentDist > 0 ? (targetDistance - accumulatedDist) / segmentDist : 0;
+                            const interpolatedLeft = curr.left + (next.left - curr.left) * Math.min(segmentProgress, 1);
+                            cursorPos = { left: interpolatedLeft, top: curr.top };
+                            break;
+                        }
+                        accumulatedDist += segmentDist;
+                    }
+                    
+                    if (!cursorPos) {
+                        cursorPos = { left: lineCharPositions[lineCharPositions.length - 1].left, top: lineCharPositions[lineCharPositions.length - 1].top };
+                    }
+
+                    const cursor = document.getElementById('globalCursor');
+                    if (cursor) {
+                        cursor.style.left = cursorPos.left + 'px';
+                        cursor.style.top = cursorPos.top + 'px';
+                        cursor.style.background = getComputedStyle(document.documentElement).getPropertyValue('--cursor-color').trim();
+                    }
+
+                    if (progress < 1) {
+                        requestAnimationFrame(updateCursorPosition);
+                    } else {
+                        // Line animation complete
+                        if (repeatPerLine && linePass < 2) {
+                            // Repeat this line
+                            setTimeout(animateLinePass, 300);
+                        } else {
+                            // Move to next line
+                            lineIdx++;
+                            setTimeout(animateNextLine, 300);
+                        }
+                    }
+                };
+
+                requestAnimationFrame(updateCursorPosition);
+            };
+            
+            animateLinePass();
+        };
+        
+        animateNextLine();
+    }
+    
+    function animateKidsFullPoem(sequence, container, speedMultiplier) {
+        // Line-by-line full poem, repeated twice
+        if (!isReading || sequence.length === 0) {
+            setTimeout(() => {
+                renderKidsSloka();
+            }, 1000);
+            return;
+        }
+
+        acquireWakeLock();
+
+        const charPositions = [];
+        const lineIndices = [];
+        let currentLineStart = 0;
+        let lastTop = null;
+
+        for (let i = 0; i < sequence.length; i++) {
+            const charEl = document.getElementById(sequence[i].id);
+            if (charEl) {
+                const charRect = charEl.getBoundingClientRect();
+                const charTop = charRect.bottom - 10;
+                charPositions.push({ left: charRect.left, top: charTop });
+
+                if (lastTop !== null && Math.abs(charTop - lastTop) > 5) {
+                    lineIndices.push({ start: currentLineStart, end: i - 1 });
+                    currentLineStart = i;
+                }
+                lastTop = charTop;
+            }
+        }
+        lineIndices.push({ start: currentLineStart, end: sequence.length - 1 });
+
+        if (charPositions.length === 0) {
+            setTimeout(() => {
+                renderKidsSloka();
+            }, 1000);
+            return;
+        }
+
+        let cursor = document.getElementById('globalCursor');
+        if (!cursor) {
+            cursor = document.createElement('div');
+            cursor.id = 'globalCursor';
+            cursor.style.position = 'fixed';
+            cursor.style.height = '6px';
+            cursor.style.width = '35px';
+            cursor.style.borderRadius = '3px';
+            cursor.style.zIndex = '100';
+            cursor.style.pointerEvents = 'none';
+            document.body.appendChild(cursor);
+        }
+
+        const pixelsPerSecond = 50 * speedMultiplier;
+        let poemPass = 0;
+
+        const animatePoemPass = () => {
+            poemPass++;
+            let lineIdx = 0;
+
+            const animateNextLine = () => {
+                if (lineIdx >= lineIndices.length) {
+                    if (poemPass < 2) {
+                        setTimeout(animatePoemPass, 200);
+                        return;
+                    }
+
+                    releaseWakeLock();
+                    const advance = () => {
+                        kidsCurrentPhase++;
+                        if (kidsCurrentPhase > 3) {
+                            kidsCurrentPhase = 0;
+                            kidsCurrentLineIdx = 0;
+                            currentSlokaIdx++;
+                        }
+                        renderKidsSloka();
+                    };
+
+                    if (kidsCurrentPhase === 3) {
+                        showClapsCelebration(advance, 10000);
+                    } else {
+                        setTimeout(advance, 500);
+                    }
+                    return;
+                }
+
+                const lineBounds = lineIndices[lineIdx];
+                const lineCharPositions = charPositions.slice(lineBounds.start, lineBounds.end + 1);
+
+                let lineDistance = 0;
+                for (let i = 0; i < lineCharPositions.length - 1; i++) {
+                    const curr = lineCharPositions[i];
+                    const next = lineCharPositions[i + 1];
+                    lineDistance += Math.max(0, next.left - curr.left);
+                }
+
+                const lineDuration = lineDistance > 0 ? (lineDistance / pixelsPerSecond) * 1000 : 300;
+                const animationStartTime = performance.now();
+
+                const updateCursorPosition = (currentTime) => {
+                    if (!isReading) return;
+
+                    const elapsed = currentTime - animationStartTime;
+                    const progress = Math.min(elapsed / lineDuration, 1);
+                    const targetDistance = progress * lineDistance;
+
+                    let accumulatedDist = 0;
+                    let cursorPos = null;
+
+                    for (let i = 0; i < lineCharPositions.length - 1; i++) {
+                        const curr = lineCharPositions[i];
+                        const next = lineCharPositions[i + 1];
+                        const segmentDist = Math.max(0, next.left - curr.left);
+
+                        if (accumulatedDist + segmentDist >= targetDistance) {
+                            const segmentProgress = segmentDist > 0 ? (targetDistance - accumulatedDist) / segmentDist : 0;
+                            const interpolatedLeft = curr.left + (next.left - curr.left) * Math.min(segmentProgress, 1);
+                            cursorPos = { left: interpolatedLeft, top: curr.top };
+                            break;
+                        }
+                        accumulatedDist += segmentDist;
+                    }
+
+                    if (!cursorPos) {
+                        cursorPos = { left: lineCharPositions[lineCharPositions.length - 1].left, top: lineCharPositions[lineCharPositions.length - 1].top };
+                    }
+
+                    const cursor = document.getElementById('globalCursor');
+                    if (cursor) {
+                        cursor.style.left = cursorPos.left + 'px';
+                        cursor.style.top = cursorPos.top + 'px';
+                        cursor.style.background = getComputedStyle(document.documentElement).getPropertyValue('--cursor-color').trim();
+                    }
+
+                    if (progress < 1) {
+                        requestAnimationFrame(updateCursorPosition);
+                    } else {
+                        lineIdx++;
+                        setTimeout(animateNextLine, 300);
+                    }
+                };
+
+                requestAnimationFrame(updateCursorPosition);
+            };
+
+            animateNextLine();
+        };
+
+        animatePoemPass();
     }
     
     function renderSocialMediaSloka() {
@@ -1585,6 +2689,25 @@
         document.documentElement.style.setProperty('--text-align', e.target.value);
         log.debug('Text alignment changed', { newAlignment: e.target.value });
     });
+
+    // Tab recording controls
+    document.getElementById('recordStartBtn')?.addEventListener('click', () => {
+        updateRecordingStatus('Starting...');
+        startTabRecording();
+    });
+    document.getElementById('recordStopBtn')?.addEventListener('click', () => {
+        updateRecordingStatus('Stopping...');
+        stopTabRecording();
+    });
+
+    // Portrait preview mode (9:16)
+    document.getElementById('portraitModeToggle')?.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            document.body.classList.add('portrait-mode');
+        } else {
+            document.body.classList.remove('portrait-mode');
+        }
+    });
     
     // Loop count display
     document.getElementById('loopControl')?.addEventListener('input', (e) => {
@@ -1600,6 +2723,7 @@
         const exitOption = document.getElementById('exitOption');
         const loopOption = document.getElementById('loopOption');
         const textEffectsOption = document.getElementById('textEffectsOption');
+        const fontStyleOption = document.getElementById('fontStyleOption');
         
         if (mode === 'social') {
             transitionOption.style.display = 'none';
@@ -1607,15 +2731,29 @@
             exitOption.style.display = '';
             loopOption.style.display = '';
             textEffectsOption.style.display = '';
+            fontStyleOption.style.display = 'none';
+        } else if (mode === 'kids') {
+            transitionOption.style.display = 'none';
+            entranceOption.style.display = 'none';
+            exitOption.style.display = 'none';
+            loopOption.style.display = 'none';
+            textEffectsOption.style.display = 'none';
+            fontStyleOption.style.display = '';
         } else {
             transitionOption.style.display = '';
             entranceOption.style.display = 'none';
             exitOption.style.display = 'none';
             loopOption.style.display = 'none';
             textEffectsOption.style.display = 'none';
+            fontStyleOption.style.display = 'none';
         }
         
         log.debug('Mode changed', { newMode: mode });
+    });
+
+    // Font style for Kids mode
+    document.getElementById('fontStyleSelect')?.addEventListener('change', () => {
+        applyKidsFontStyle();
     });
 
     // Background image handling
