@@ -24,7 +24,16 @@
             :root { --font-size: 22px; }
         }
         body { font-family: 'NTR', sans-serif; background: var(--bg-color); color: var(--text-color); margin: 0; overflow-x: hidden; }
-        .settings-container { width: 90%; max-width: 850px; margin: 20px auto; background: white; padding: 25px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .settings-container { width: 95%; max-width: 850px; margin: 10px auto; background: white; padding: 15px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        @media (max-width: 768px) {
+            .settings-container { padding: 12px; margin: 8px auto; }
+            .controls { grid-template-columns: 1fr !important; gap: 10px !important; }
+            textarea { min-height: 120px; font-size: 16px; }
+            .option-group { padding: 10px; }
+            .color-controls { flex-wrap: wrap; gap: 8px; }
+            .recording-controls { flex-direction: column; align-items: stretch; }
+            .recording-controls button { width: 100%; }
+        }
         body.reading-active .settings-container { display: none; }
         textarea { width: 100%; min-height: 180px; margin-bottom: 20px; padding: 15px; font-size: 18px; border: 2px solid #e0e0e0; border-radius: 10px; }
         .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
@@ -208,13 +217,8 @@
         <input id="textFileInput" type="file" accept=".txt,.md,.csv,.rtf,.html,.htm,text/plain,text/*">
         <small id="textFileStatus">Text files retain their spacing.</small>
     </div>
-    <div class="option-group" id="paragraphCueOption" style="display: none; margin-bottom: 20px;">
-        <span>Mobile Paragraph Cue Editor</span>
-        <button id="buildParagraphCueEditor" type="button">Create paragraph cue cards</button>
-        <small>Choose Social Media Mode, then create cards. Start the music timer and tap each paragraph when it should appear.</small>
-        <div id="paragraphCueEditor" class="paragraph-cue-editor" hidden></div>
-    </div>
     <div class="controls">
+        <!-- === MODE === -->
         <div class="option-group"><span>Mode</span>
             <select id="modeSelect">
                 <option value="unifocus">UniFocus Mode</option>
@@ -225,6 +229,93 @@
                 <option value="kids">Kids Learning Mode</option>
             </select>
         </div>
+
+        <!-- === MUSIC, TIMING & CUES === -->
+        <div class="option-group">
+            <span>🎵 Music &amp; Cue Timer</span>
+            <input id="audioFileInput" type="file" accept="audio/mpeg,audio/mp3,audio/*">
+            <audio id="backgroundAudio" controls style="width: 100%;" hidden></audio>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="startAudioWithText" checked>
+                <span>Start music with text</span>
+            </label>
+            <small id="audioStatus">Choose an MP3 to add it to the presentation.</small>
+            <hr style="border: none; border-top: 1px solid #eee; margin: 8px 0;">
+            <div class="recording-controls">
+                <button id="cueTimerStartBtn" type="button">Start Music Timer</button>
+                <button id="cueTimerMarkBtn" type="button" disabled>Mark Next Text</button>
+                <button id="cueTimerStopBtn" type="button" disabled>Stop</button>
+                <button id="cueTimerClearBtn" type="button">Clear Cues</button>
+            </div>
+            <span id="cueTimerStatus" style="font-size:12px; color:#555;">Ready — timer auto-starts on play, stops when music ends</span>
+        </div>
+
+        <!-- === MUSIC SYNC TIMING (Social Media only) === -->
+        <div class="option-group" id="socialTimingOption" style="display: none;">
+            <span>⏱ Sync Timing (seconds)</span>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <label style="font-size:13px;">First delay <input id="socialStartDelay" type="number" min="0" max="120" step="0.1" value="2" style="width:100%;"></label>
+                <label style="font-size:13px;">Entrance <input id="entranceDuration" type="number" min="0.1" max="20" step="0.1" value="0.8" style="width:100%;"></label>
+                <label style="font-size:13px;">Hold <input id="socialHoldDuration" type="number" min="0" max="120" step="0.1" value="3" style="width:100%;"></label>
+                <label style="font-size:13px;">Exit <input id="exitDuration" type="number" min="0.1" max="20" step="0.1" value="0.6" style="width:100%;"></label>
+            </div>
+            <label style="font-size:13px; margin-top:6px;" title="Shifts every recorded entrance by this amount">Cue offset <input id="socialCueOffset" type="number" min="0" max="600" step="0.1" value="0" style="width:80px;"> s</label>
+            <label style="font-size:13px;" title="One timestamp per sloka. Example: 2, 8.5, 16">Exact cues <input id="socialCueTimes" type="text" placeholder="e.g. 2, 8.5, 16" style="width:100%;"></label>
+            <div class="slider-group" style="margin-top:6px;">
+                <span style="font-size:13px;">Loops</span>
+                <input type="range" id="loopControl" min="1" max="10" step="1" value="1">
+                <span class="value-display" id="loopValue">1</span>
+            </div>
+        </div>
+
+        <!-- === EFFECTS (Social Media Mode) === -->
+        <div class="option-group" id="effectsOption" style="display: none;">
+            <span>Effects</span>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <label style="font-size:13px;">Entrance
+                    <select id="entranceSelect" style="width:100%;">
+                        <option value="fade">Fade In</option>
+                        <option value="slide-up">Slide Up</option>
+                        <option value="slide-down">Slide Down</option>
+                        <option value="slide-left">Slide Left</option>
+                        <option value="slide-right">Slide Right</option>
+                        <option value="zoom">Zoom In</option>
+                        <option value="zoom-out">Zoom Out</option>
+                        <option value="rotate">Rotate In</option>
+                        <option value="flip-x">Flip X</option>
+                        <option value="flip-y">Flip Y</option>
+                        <option value="bounce">Bounce In</option>
+                        <option value="blur">Blur In</option>
+                        <option value="spiral">Spiral In</option>
+                        <option value="rolling">Rolling</option>
+                        <option value="typewriter">Typewriter</option>
+                    </select>
+                </label>
+                <label style="font-size:13px;">Exit
+                    <select id="exitSelect" style="width:100%;">
+                        <option value="fade">Fade Out</option>
+                        <option value="slide-up">Slide Up</option>
+                        <option value="slide-down">Slide Down</option>
+                        <option value="zoom">Zoom Out</option>
+                        <option value="zoom-in">Zoom In</option>
+                        <option value="rotate">Rotate Out</option>
+                        <option value="flip-x">Flip X</option>
+                        <option value="flip-y">Flip Y</option>
+                        <option value="blur">Blur Out</option>
+                        <option value="bounce">Bounce Out</option>
+                        <option value="wave">Wave Out</option>
+                        <option value="typewriter-erase">Typewriter Erase</option>
+                    </select>
+                </label>
+            </div>
+            <div id="textEffectsInline" style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px;">
+                <label style="display: flex; align-items: center; gap: 4px; font-size: 13px;"><input type="checkbox" id="textShadow"> Shadow</label>
+                <label style="display: flex; align-items: center; gap: 4px; font-size: 13px;"><input type="checkbox" id="textOutline"> Outline</label>
+                <label style="display: flex; align-items: center; gap: 4px; font-size: 13px;"><input type="checkbox" id="textGlow"> Glow</label>
+            </div>
+        </div>
+
+        <!-- === SLOKA TRANSITION (non-social modes) === -->
         <div class="option-group" id="transitionOption">
             <span>Sloka Transition</span>
             <select id="transitionSelect">
@@ -242,82 +333,56 @@
                 <option value="typewriter-erase">Typewriter Erase</option>
             </select>
         </div>
-        <div class="option-group" id="entranceOption" style="display: none;">
-            <span>Entrance Effect</span>
-            <select id="entranceSelect">
-                <option value="fade">Fade In</option>
-                <option value="slide-up">Slide Up</option>
-                <option value="slide-down">Slide Down</option>
-                <option value="slide-left">Slide Left</option>
-                <option value="slide-right">Slide Right</option>
-                <option value="zoom">Zoom In</option>
-                <option value="zoom-out">Zoom Out</option>
-                <option value="rotate">Rotate In</option>
-                <option value="flip-x">Flip Horizontal</option>
-                <option value="flip-y">Flip Vertical</option>
-                <option value="bounce">Bounce In</option>
-                <option value="blur">Blur In</option>
-                <option value="spiral">Spiral In</option>
-                <option value="rolling">Rolling</option>
-                <option value="typewriter">Typewriter</option>
-            </select>
-        </div>
-        <div class="option-group" id="socialTimingOption" style="display: none;">
-            <span>Music Sync Timing (seconds)</span>
-            <label>First entrance delay <input id="socialStartDelay" type="number" min="0" max="120" step="0.1" value="2"></label>
-            <label>Entrance duration <input id="entranceDuration" type="number" min="0.1" max="20" step="0.1" value="0.8"></label>
-            <label>Hold after entrance <input id="socialHoldDuration" type="number" min="0" max="120" step="0.1" value="3"></label>
-            <label>Exit duration <input id="exitDuration" type="number" min="0.1" max="20" step="0.1" value="0.6"></label>
-            <label title="Shifts every recorded entrance by this amount without changing the spacing between text blocks.">Cue start time <input id="socialCueOffset" type="number" min="0" max="600" step="0.1" value="0"> seconds</label>
-            <label title="Optional: one timestamp per sloka, measured from Start Reading. Example: 2, 8.5, 16">Exact entrance cues <input id="socialCueTimes" type="text" placeholder="e.g. 2, 8.5, 16"></label>
-            <div class="recording-controls">
-                <button id="cueTimerStartBtn" type="button">Start Music Timer</button>
-                <button id="cueTimerMarkBtn" type="button" disabled>Mark Next Text</button>
-                <button id="cueTimerStopBtn" type="button" disabled>Stop</button>
-                <button id="cueTimerClearBtn" type="button">Clear Cues</button>
-                <span id="cueTimerStatus">Ready</span>
-            </div>
-            <small>Start the timer exactly when the music starts, then mark every text entrance. The recorded times fill in automatically.</small>
-        </div>
-        <div class="option-group" id="exitOption" style="display: none;">
-            <span>Exit Effect</span>
-            <select id="exitSelect">
-                <option value="fade">Fade Out</option>
-                <option value="slide-up">Slide Up</option>
-                <option value="slide-down">Slide Down</option>
-                <option value="zoom">Zoom Out</option>
-                <option value="zoom-in">Zoom In</option>
-                <option value="rotate">Rotate Out</option>
-                <option value="flip-x">Flip Horizontal</option>
-                <option value="flip-y">Flip Vertical</option>
-                <option value="blur">Blur Out</option>
-                <option value="bounce">Bounce Out</option>
-                <option value="wave">Wave Out</option>
-                <option value="typewriter-erase">Typewriter Erase</option>
-            </select>
-        </div>
+
+        <!-- === APPEARANCE === -->
         <div class="option-group">
-            <span>Font Size</span>
-            <div class="slider-group">
-                <input type="range" id="fontSizeControl" min="16" max="80" value="42">
-                <span class="value-display" id="fontSizeValue">42</span>
+            <span>Appearance</span>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: center;">
+                <label style="font-size:13px;">Font Size
+                    <div class="slider-group"><input type="range" id="fontSizeControl" min="16" max="80" value="42"><span class="value-display" id="fontSizeValue">42</span></div>
+                </label>
+                <label style="font-size:13px;">Speed
+                    <div class="slider-group"><input type="range" id="speedControl" min="1" max="12" step="1" value="1"><span class="value-display" id="speedValue">1</span></div>
+                </label>
+            </div>
+            <label style="font-size:13px; margin-top:8px;">Alignment
+                <select id="alignmentSelect" style="width:100%;">
+                    <option value="left">Left</option>
+                    <option value="center" selected>Center</option>
+                    <option value="right">Right</option>
+                </select>
+            </label>
+            <div class="color-controls" style="margin-top:10px;">
+                <label>BG <input type="color" id="bgPicker" value="#f4f7f6"></label>
+                <label>Text <input type="color" id="textPicker" value="#111111"></label>
+                <label>Cursor <input type="color" id="cursorPicker" value="#1a73e8"></label>
             </div>
         </div>
+
+        <!-- === BACKGROUND IMAGE === -->
         <div class="option-group">
-            <span>Speed</span>
-            <div class="slider-group">
-                <input type="range" id="speedControl" min="1" max="12" step="1" value="1">
-                <span class="value-display" id="speedValue">1</span>
+            <span>Background Image</span>
+            <div class="bg-image-controls">
+                <input type="file" id="bgImageInput" accept="image/*" title="Select background image">
+                <div class="bg-image-row">
+                    <label style="flex: 1;">Opacity: <span id="bgOpacityValue">30</span>%</label>
+                    <input type="range" id="bgOpacity" min="0" max="100" value="30" style="flex: 2;">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <select id="bgPosition" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="center">Center</option>
+                        <option value="left">Left</option>
+                        <option value="right">Right</option>
+                    </select>
+                    <select id="bgSize" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="cover">Cover</option>
+                        <option value="contain">Fit</option>
+                    </select>
+                </div>
             </div>
         </div>
-        <div class="option-group">
-            <span>Text Alignment</span>
-            <select id="alignmentSelect">
-                <option value="left">Left</option>
-                <option value="center" selected>Center</option>
-                <option value="right">Right</option>
-            </select>
-        </div>
+
+        <!-- === RECORDING === -->
         <div class="option-group">
             <span>Recording</span>
             <div class="recording-controls">
@@ -334,30 +399,25 @@
                 <span id="recordStatus">Idle</span>
             </div>
         </div>
-        <div class="option-group" id="loopOption" style="display: none;">
-            <span>Loop Count</span>
-            <div class="slider-group">
-                <input type="range" id="loopControl" min="1" max="10" step="1" value="1">
-                <span class="value-display" id="loopValue">1</span>
-            </div>
+
+        <!-- === BRANDING === -->
+        <div class="option-group">
+            <span>Branding</span>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="showBranding" checked>
+                <span>Show Branding</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="showInstagramBranding" checked>
+                <span>Instagram — @AISreenu</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="showYouTubeBranding">
+                <span>YouTube — @AISreenu</span>
+            </label>
         </div>
-        <div class="option-group" id="textEffectsOption" style="display: none;">
-            <span>Text Effects</span>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-                <label style="display: flex; align-items: center; gap: 8px;">
-                    <input type="checkbox" id="textShadow" style="cursor: pointer;">
-                    <span>Text Shadow</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 8px;">
-                    <input type="checkbox" id="textOutline" style="cursor: pointer;">
-                    <span>Text Outline</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 8px;">
-                    <input type="checkbox" id="textGlow" style="cursor: pointer;">
-                    <span>Text Glow</span>
-                </label>
-            </div>
-        </div>
+
+        <!-- === KIDS MODE FONT === -->
         <div class="option-group" id="fontStyleOption" style="display: none;">
             <span>Font Style (Kids Mode)</span>
             <select id="fontStyleSelect">
@@ -368,65 +428,20 @@
                 <option value="comic">Comic Sans Style</option>
             </select>
         </div>
-        <div class="option-group">
-            <span>Colors</span>
-            <div class="color-controls">
-                <label>Background <input type="color" id="bgPicker" value="#f4f7f6" title="Background Color"></label>
-                <label>Text <input type="color" id="textPicker" value="#111111" title="Text Color"></label>
-                <label>Cursor <input type="color" id="cursorPicker" value="#1a73e8" title="Cursor Color"></label>
-            </div>
+
+        <!-- === PARAGRAPH CUE EDITOR === -->
+        <div class="option-group" id="paragraphCueOption" style="display: none;">
+            <span>Paragraph Cue Editor</span>
+            <button id="buildParagraphCueEditor" type="button">Create paragraph cue cards</button>
+            <small>Tap each paragraph card when it should appear during the music.</small>
+            <div id="paragraphCueEditor" class="paragraph-cue-editor" hidden></div>
         </div>
-        <div class="option-group">
-            <span>Background Music</span>
-            <input id="audioFileInput" type="file" accept="audio/mpeg,audio/mp3,audio/*">
-            <audio id="backgroundAudio" controls style="width: 100%;" hidden></audio>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="checkbox" id="startAudioWithText" checked>
-                <span>Start music with text</span>
-            </label>
-            <small id="audioStatus">Choose an MP3 to add it to the presentation.</small>
-        </div>
-        <div class="option-group">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="checkbox" id="showBranding" checked style="cursor: pointer;">
-                <span>Show Branding</span>
-            </label>
-        </div>
-        <div class="option-group">
-            <span>Marketing Branding</span>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="checkbox" id="showInstagramBranding" checked>
-                <span>Instagram — @AISreenu</span>
-            </label>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="checkbox" id="showYouTubeBranding">
-                <span>YouTube — @AISreenu</span>
-            </label>
-        </div>
+
         <div class="option-group" id="sampleTextOption" style="display: none;">
             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                 <input type="checkbox" id="useSampleText" style="cursor: pointer;">
                 <span>Use sample text (local testing)</span>
             </label>
-        </div>
-        <div class="option-group">
-            <span>Background Image</span>
-            <div class="bg-image-controls">
-                <input type="file" id="bgImageInput" accept="image/*" title="Select background image">
-                <div class="bg-image-row">
-                    <label style="flex: 1;">Opacity: <span id="bgOpacityValue">30</span>%</label>
-                    <input type="range" id="bgOpacity" min="0" max="100" value="30" style="flex: 2;">
-                </div>
-                <select id="bgPosition" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-                    <option value="center">Align: Center</option>
-                    <option value="left">Align: Left</option>
-                    <option value="right">Align: Right</option>
-                </select>
-                <select id="bgSize" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-                    <option value="cover">Cover</option>
-                    <option value="contain">Fit</option>
-                </select>
-            </div>
         </div>
     </div>
     <button onclick="startReading()" style="width:100%; padding:15px; background:#34a853; color:white; border:none; border-radius:8px; cursor:pointer;">Start Reading</button>
@@ -2976,6 +2991,10 @@
             audio.pause();
             audio.currentTime = 0;
         }
+        // Stop cue timer if running
+        if (isCueTimerRunning) {
+            stopCueTimer();
+        }
         document.body.classList.remove('reading-active');
         const displayArea = document.getElementById('displayArea');
         if (displayArea) {
@@ -3067,6 +3086,20 @@
         document.getElementById('audioStatus').textContent = `${file.name} is ready to play with the text.`;
     });
 
+    // Auto-start cue timer when music plays (only in settings view, not during reading)
+    document.getElementById('backgroundAudio')?.addEventListener('play', () => {
+        if (!isCueTimerRunning && !isReading && !getRecordedCueTimes().length) {
+            startCueTimer();
+            log.info('Cue timer auto-started with music play');
+        }
+    });
+    document.getElementById('backgroundAudio')?.addEventListener('ended', () => {
+        if (isCueTimerRunning) {
+            stopCueTimer();
+            log.info('Cue timer auto-stopped: music ended');
+        }
+    });
+
     // Portrait preview mode (9:16)
     document.getElementById('portraitModeToggle')?.addEventListener('change', (e) => {
         if (e.target.checked) {
@@ -3086,40 +3119,28 @@
     document.getElementById('modeSelect')?.addEventListener('change', (e) => {
         const mode = e.target.value;
         const transitionOption = document.getElementById('transitionOption');
-        const entranceOption = document.getElementById('entranceOption');
+        const effectsOption = document.getElementById('effectsOption');
         const socialTimingOption = document.getElementById('socialTimingOption');
         const paragraphCueOption = document.getElementById('paragraphCueOption');
-        const exitOption = document.getElementById('exitOption');
-        const loopOption = document.getElementById('loopOption');
-        const textEffectsOption = document.getElementById('textEffectsOption');
         const fontStyleOption = document.getElementById('fontStyleOption');
         
         if (mode === 'social') {
             transitionOption.style.display = 'none';
-            entranceOption.style.display = '';
+            effectsOption.style.display = '';
             socialTimingOption.style.display = '';
             paragraphCueOption.style.display = '';
-            exitOption.style.display = '';
-            loopOption.style.display = '';
-            textEffectsOption.style.display = '';
             fontStyleOption.style.display = 'none';
         } else if (mode === 'kids') {
             transitionOption.style.display = 'none';
-            entranceOption.style.display = 'none';
+            effectsOption.style.display = 'none';
             socialTimingOption.style.display = 'none';
             paragraphCueOption.style.display = 'none';
-            exitOption.style.display = 'none';
-            loopOption.style.display = 'none';
-            textEffectsOption.style.display = 'none';
             fontStyleOption.style.display = '';
         } else {
             transitionOption.style.display = '';
-            entranceOption.style.display = 'none';
+            effectsOption.style.display = 'none';
             socialTimingOption.style.display = 'none';
             paragraphCueOption.style.display = 'none';
-            exitOption.style.display = 'none';
-            loopOption.style.display = 'none';
-            textEffectsOption.style.display = 'none';
             fontStyleOption.style.display = 'none';
         }
         
