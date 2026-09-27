@@ -109,7 +109,12 @@
         /* Rolling entrance effect */
         .entrance-rolling { animation: none; } /* Handled by JS */
         
-        #displayArea { display: none; justify-content: center; align-items: center; min-height: 100vh; padding: 10vh 20px; box-sizing: border-box; position: relative; }
+        #backgroundImage, #backgroundVideo { display: none; position: fixed; inset: 0; width: 100%; height: 100%; opacity: var(--bg-media-opacity, 0.3); z-index: 0; pointer-events: none; background-color: #000; }
+        #backgroundImage { background-image: var(--bg-media-image); background-size: var(--bg-media-size, cover); background-position: var(--bg-media-position, center); background-repeat: no-repeat; }
+        #backgroundVideo { object-fit: var(--bg-media-size, cover); object-position: var(--bg-media-position, center); }
+        body.reading-active.social-media-active.background-image-selected #backgroundImage { display: block; }
+        body.reading-active.social-media-active.background-video-selected #backgroundVideo { display: block; }
+        #displayArea { display: none; justify-content: center; align-items: center; min-height: 100vh; padding: 10vh 20px; box-sizing: border-box; position: relative; z-index: 1; }
         body.portrait-mode #displayArea {
             width: min(100vw, 56.25vh);
             aspect-ratio: 9 / 16;
@@ -118,7 +123,6 @@
             margin: 0 auto;
             padding: 8vh 12px;
         }
-        #displayArea::before { content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-size: var(--bg-image-size, cover); background-position: var(--bg-image-position, center); background-image: var(--bg-image); background-repeat: no-repeat; opacity: var(--bg-image-opacity, 1); z-index: -1; pointer-events: none; }
         body.reading-active #displayArea { display: flex; padding-top: calc(10vh + 60px); }
         
         #globalCursor { 
@@ -135,9 +139,9 @@
         .color-controls label { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 14px; white-space: nowrap; }
         .color-controls input[type="color"] { width: 50px; height: 40px; border: none; border-radius: 6px; cursor: pointer; }
         
-        .bg-image-controls { display: flex; flex-direction: column; gap: 10px; }
-        .bg-image-controls input[type="file"] { padding: 6px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; }
-        .bg-image-row { display: flex; gap: 10px; }
+        .bg-video-controls { display: flex; flex-direction: column; gap: 10px; }
+        .bg-video-controls input[type="file"] { padding: 6px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; }
+        .bg-video-row { display: flex; gap: 10px; }
         .recording-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         .recording-controls button { padding: 8px 12px; border: none; border-radius: 8px; cursor: pointer; color: #fff; }
         #recordStartBtn { background: #1a73e8; }
@@ -359,12 +363,13 @@
             </div>
         </div>
 
-        <!-- === BACKGROUND IMAGE === -->
+        <!-- === BACKGROUND MEDIA === -->
         <div class="option-group">
-            <span>Background Image</span>
-            <div class="bg-image-controls">
-                <input type="file" id="bgImageInput" accept="image/*" title="Select background image">
-                <div class="bg-image-row">
+            <span>Background Image or Video (Social Media Mode)</span>
+            <div class="bg-video-controls">
+                <input type="file" id="bgMediaInput" accept="image/*,video/mp4,video/webm,video/quicktime,video/*" title="Select background image or video">
+                <small id="bgMediaStatus">Choose an image or video. Videos play muted and loop; MP4 works best on phones.</small>
+                <div class="bg-video-row">
                     <label style="flex: 1;">Opacity: <span id="bgOpacityValue">30</span>%</label>
                     <input type="range" id="bgOpacity" min="0" max="100" value="30" style="flex: 2;">
                 </div>
@@ -452,6 +457,8 @@
     <div class="branding-line">#AIశ్రీను</div>
     <div class="branding-line" id="marketingHandle">instagram/@AISreenu</div>
 </div>
+<div id="backgroundImage" aria-hidden="true"></div>
+<video id="backgroundVideo" muted loop playsinline webkit-playsinline preload="metadata" disablepictureinpicture controlslist="nodownload noplaybackrate nofullscreen"></video>
 <div id="displayArea"></div>
 
 <script>
@@ -463,6 +470,8 @@
     let cueTimerInterval = null;
     let paragraphCueTimes = [];
     let backgroundAudioUrl = null;
+    let backgroundMediaUrl = null;
+    let backgroundMediaType = null;
     let currentLoopCount = 0;
     let maxLoops = 1;
     let mediaRecorder = null;
@@ -556,68 +565,37 @@
         }
     }
 
-    function compressImage(imageData, maxWidth = 2048, maxHeight = 2048, quality = 0.8) {
-        return new Promise((resolve) => {
-            const img = new Image();
-            img.onload = () => {
-                let width = img.width;
-                let height = img.height;
-                
-                // Scale down if too large
-                if (width > maxWidth || height > maxHeight) {
-                    const scale = Math.min(maxWidth / width, maxHeight / height);
-                    width = Math.round(width * scale);
-                    height = Math.round(height * scale);
-                }
-                
-                const canvas = document.createElement('canvas');
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                
-                const compressed = canvas.toDataURL('image/jpeg', quality);
-                resolve(compressed);
-            };
-            img.onerror = () => {
-                log.warn('Image compression failed, using original');
-                resolve(imageData);
-            };
-            img.src = imageData;
-        });
-    }
-
-    function saveBackgroundImage(imageData) {
-        try {
-            localStorage.setItem('slokaReader.bgImage.v1', imageData);
-            log.info('Background image saved');
-        } catch (err) {
-            log.warn('Background image save failed', err);
-        }
-    }
-
-    function restoreBackgroundImage() {
-        try {
-            const saved = localStorage.getItem('slokaReader.bgImage.v1');
-            if (saved) {
-                applyBackgroundImage(saved);
-                log.info('Background image restored from local storage');
-            }
-        } catch (err) {
-            log.warn('Background image restore failed', err);
-        }
-    }
-
-    function applyBackgroundImage(imageData) {
-        const displayArea = document.getElementById('displayArea');
-        if (!displayArea) return;
+    function applyBackgroundMediaSettings() {
+        const image = document.getElementById('backgroundImage');
+        const video = document.getElementById('backgroundVideo');
+        if (!image || !video) return;
         const opacity = (document.getElementById('bgOpacity')?.value || 100) / 100;
         const position = document.getElementById('bgPosition')?.value || 'center';
         const size = document.getElementById('bgSize')?.value || 'cover';
-        displayArea.style.setProperty('--bg-image', `url('${imageData}')`);
-        displayArea.style.setProperty('--bg-image-opacity', opacity);
-        displayArea.style.setProperty('--bg-image-position', position);
-        displayArea.style.setProperty('--bg-image-size', size);
+        [image, video].forEach((element) => {
+            element.style.setProperty('--bg-media-opacity', opacity);
+            element.style.setProperty('--bg-media-position', position);
+            element.style.setProperty('--bg-media-size', size);
+        });
+    }
+
+    async function startBackgroundMedia() {
+        const video = document.getElementById('backgroundVideo');
+        if (backgroundMediaType !== 'video' || !video?.src) return;
+        video.currentTime = 0;
+        try {
+            await video.play();
+            log.info('Background video started');
+        } catch (err) {
+            log.warn('Background video could not start automatically', err);
+        }
+    }
+
+    function stopBackgroundMedia() {
+        const video = document.getElementById('backgroundVideo');
+        if (!video) return;
+        video.pause();
+        video.currentTime = 0;
     }
 
     function restoreDraftIfAvailable() {
@@ -909,6 +887,8 @@
             maxLoops = parseInt(document.getElementById('loopControl').value);
             isReading = true;
             document.body.classList.add('reading-active');
+            document.body.classList.add('social-media-active');
+            startBackgroundMedia();
             document.getElementById('displayArea').classList.remove('scroll-mode');
             document.getElementById('displayArea').classList.remove('rolling-mode');
             const firstCue = getSocialCueTimes()[0];
@@ -916,6 +896,8 @@
             log.info('Starting Social Media mode', { startDelay });
             setTimeout(() => renderSocialMediaSloka(), startDelay * 1000);
         } else if (mode === 'kids') {
+            document.body.classList.remove('social-media-active');
+            stopBackgroundMedia();
             const instructionDiv = document.createElement('div');
             instructionDiv.className = 'kids-instruction';
             instructionDiv.innerHTML = '<div class="title">📚 Sloka Time!</div><div class="message">Listen first, then repeat during the silence.</div>';
@@ -939,6 +921,8 @@
                 renderKidsSloka();
             }, 5000);
         } else if (mode === 'unifocus') {
+            document.body.classList.remove('social-media-active');
+            stopBackgroundMedia();
             slokas = parseSlokas(text);
             currentSlokaIdx = 0;
             isReading = true;
@@ -948,6 +932,8 @@
             log.info('Starting UniFocus mode with 2-second delay');
             setTimeout(() => renderSloka(), 2000);
         } else if (mode === 'typewriter') {
+            document.body.classList.remove('social-media-active');
+            stopBackgroundMedia();
             slokas = parseSlokas(text);
             currentSlokaIdx = 0;
             isReading = true;
@@ -957,6 +943,8 @@
             log.info('Starting Typewriter mode with 2-second delay');
             setTimeout(() => renderTypewriterSloka(), 2000);
         } else if (mode === 'scroll') {
+            document.body.classList.remove('social-media-active');
+            stopBackgroundMedia();
             // Continuous scroll mode
             slokas = parseSlokas(text);
             currentSlokaIdx = 0;
@@ -967,6 +955,8 @@
             log.info('Starting Continuous mode with 2-second delay');
             setTimeout(() => renderScrollMode(), 2000);
         } else if (mode === 'rolling') {
+            document.body.classList.remove('social-media-active');
+            stopBackgroundMedia();
             // Rolling credits mode
             isReading = true;
             document.body.classList.add('reading-active');
@@ -2964,10 +2954,6 @@
             } else {
                 // Animation complete - last line is centered
                 container.style.transform = `translate3d(0, ${endY}px, 0)`;
-                const displayArea = document.getElementById('displayArea');
-                if (displayArea) {
-                    displayArea.style.setProperty('--bg-image-opacity', '1');
-                }
                 log.info('Rolling animation completed - last line centered');
                 
                 setTimeout(() => {
@@ -2996,10 +2982,11 @@
             stopCueTimer();
         }
         document.body.classList.remove('reading-active');
+        document.body.classList.remove('social-media-active');
+        stopBackgroundMedia();
         const displayArea = document.getElementById('displayArea');
         if (displayArea) {
             displayArea.innerHTML = '';
-            displayArea.style.setProperty('--bg-image-opacity', '0.3');
         }
         
         // Remove cursor element
@@ -3152,54 +3139,68 @@
         applyKidsFontStyle();
     });
 
-    // Background image handling
-    const bgImageInput = document.getElementById('bgImageInput');
+    // Background image/video handling
+    const bgMediaInput = document.getElementById('bgMediaInput');
     const bgOpacity = document.getElementById('bgOpacity');
     const bgPosition = document.getElementById('bgPosition');
     const bgSize = document.getElementById('bgSize');
 
-    bgImageInput?.addEventListener('change', (e) => {
+    bgMediaInput?.addEventListener('change', (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            const imageData = event.target?.result;
-            if (imageData) {
-                try {
-                    const compressed = await compressImage(imageData);
-                    saveBackgroundImage(compressed);
-                    applyBackgroundImage(compressed);
-                    log.info('Background image loaded and compressed');
-                } catch (err) {
-                    log.error('Failed to process background image', err);
-                }
-            }
-        };
-        reader.readAsDataURL(file);
+        const isImage = file.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif)$/i.test(file.name);
+        const isVideo = file.type.startsWith('video/') || /\.(mp4|mov|m4v|webm|ogv)$/i.test(file.name);
+        if (!isImage && !isVideo) {
+            document.getElementById('bgMediaStatus').textContent = 'Please choose a valid image or video file.';
+            return;
+        }
+        if (backgroundMediaUrl) {
+            URL.revokeObjectURL(backgroundMediaUrl);
+        }
+        backgroundMediaUrl = URL.createObjectURL(file);
+        backgroundMediaType = isImage ? 'image' : 'video';
+        document.body.classList.toggle('background-image-selected', isImage);
+        document.body.classList.toggle('background-video-selected', isVideo);
+
+        const image = document.getElementById('backgroundImage');
+        const video = document.getElementById('backgroundVideo');
+        stopBackgroundMedia();
+        image.style.setProperty('--bg-media-image', isImage ? `url("${backgroundMediaUrl}")` : 'none');
+        video.removeAttribute('src');
+        if (isVideo) {
+            video.src = backgroundMediaUrl;
+            video.load();
+        }
+        applyBackgroundMediaSettings();
+        document.getElementById('bgMediaStatus').textContent = `${file.name} selected as background ${backgroundMediaType}.`;
+        log.info('Background media loaded', { name: file.name, size: file.size, type: file.type });
+    });
+
+    document.getElementById('backgroundVideo')?.addEventListener('error', () => {
+        document.getElementById('bgMediaStatus').textContent = 'This video format is not supported. Try an MP4 (H.264) video.';
+        log.warn('Selected background video could not be played');
+    });
+
+    window.addEventListener('pagehide', () => {
+        if (backgroundMediaUrl) {
+            URL.revokeObjectURL(backgroundMediaUrl);
+            backgroundMediaUrl = null;
+        }
     });
 
     bgOpacity?.addEventListener('input', (e) => {
         document.getElementById('bgOpacityValue').textContent = e.target.value;
-        const saved = localStorage.getItem('slokaReader.bgImage.v1');
-        if (saved) {
-            applyBackgroundImage(saved);
-        }
+        applyBackgroundMediaSettings();
         log.debug('Background opacity changed', { newOpacity: e.target.value });
     });
 
     bgPosition?.addEventListener('change', (e) => {
-        const saved = localStorage.getItem('slokaReader.bgImage.v1');
-        if (saved) {
-            applyBackgroundImage(saved);
-        }
+        applyBackgroundMediaSettings();
         log.debug('Background position changed', { newPosition: e.target.value });
     });
 
     bgSize?.addEventListener('change', (e) => {
-        const saved = localStorage.getItem('slokaReader.bgImage.v1');
-        if (saved) {
-            applyBackgroundImage(saved);
-        }
+        applyBackgroundMediaSettings();
         log.debug('Background size changed', { newSize: e.target.value });
     });
 
@@ -3305,7 +3306,7 @@
 
         restoreDraftIfAvailable();
         applySampleTextIfRequested();
-        restoreBackgroundImage();
+        applyBackgroundMediaSettings();
         log.info('Responsive defaults set', { screenWidth: width, fontSize: defaultFontSize });
     });
 
