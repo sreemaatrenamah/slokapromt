@@ -267,6 +267,15 @@
         body.portrait-mode #sirivennelaBadge { left: max(12px,calc((100vw - min(100vw,56.25vh))/2 + 12px)); }
         body.portrait-mode.badge-center #sirivennelaBadge { left: 50%; }
         body.social-reduce-motion .social-particle { display: none; }
+        .social-page-transition { position: fixed; z-index: 10; pointer-events: none; overflow: hidden; perspective: 1800px; isolation: isolate; }
+        .social-page-snapshot, .social-page-leaf, .social-page-face, .social-page-shade { position: absolute; inset: 0; }
+        .social-page-snapshot { overflow: hidden; }
+        .social-page-leaf { transform-style: preserve-3d; }
+        .social-page-face { backface-visibility: hidden; overflow: hidden; }
+        .social-page-front { background: var(--bg-color); box-shadow: 0 0 28px #0006; }
+        .social-page-back { transform: rotateY(180deg); background: linear-gradient(90deg,#d9ccb0,#fff7e6 12%,#f4e7ca 92%,#c9b991); box-shadow: 0 0 30px #0005; }
+        .social-page-shade { background: linear-gradient(90deg,#0005,transparent 9%,transparent 75%,#0004); opacity: 0; }
+        .social-page-spine { position: absolute; inset: 0 auto 0 0; width: 7px; background: linear-gradient(90deg,#0006,transparent); }
     </style>
 </head>
 <body>
@@ -353,6 +362,39 @@
                 </select>
             </label>
             <small class="social-help">Applies to motion and particles. Canvas means the small panel behind the lyrics. Background only keeps lyrics still; Everything animates lyrics and background together. The Sirivennela icon is always excluded.</small>
+            <label>Page transition (between lyric pages / scenes)
+                <select id="socialPageTransition">
+                    <option value="none">Off - use entrance / exit effects only</option>
+                    <option value="book-forward">Book - turn to next page</option>
+                    <option value="book-backward">Book - turn page backward</option>
+                    <option value="page-lift">Page lift - flip upward</option>
+                    <option value="crossfade">Soft crossfade</option>
+                    <option value="wipe-left">Wipe left</option>
+                    <option value="wipe-right">Wipe right</option>
+                    <option value="wipe-up">Wipe up</option>
+                    <option value="wipe-down">Wipe down</option>
+                    <option value="push-left">Push left</option>
+                    <option value="push-right">Push right</option>
+                    <option value="push-up">Push up</option>
+                    <option value="push-down">Push down</option>
+                    <option value="zoom-through">Zoom through</option>
+                    <option value="zoom-retreat">Zoom retreat</option>
+                    <option value="iris">Circular iris</option>
+                    <option value="diamond">Diamond opening</option>
+                    <option value="curtain">Curtain opening</option>
+                    <option value="diagonal">Diagonal sweep</option>
+                    <option value="blinds">Venetian blinds</option>
+                    <option value="checker">Checkerboard dissolve</option>
+                    <option value="tilt">3D card tilt</option>
+                    <option value="blur">Dreamy blur</option>
+                    <option value="cycle">Cycle through all transitions</option>
+                    <option value="random">Random transition each page</option>
+                </select>
+            </label>
+            <label>Page transition duration (seconds)
+                <input id="socialPageDuration" type="number" min="0.2" max="4" step="0.1" value="1.2">
+            </label>
+            <small class="social-help">Book turns use a hinged 3D sheet, paper back, spine, and moving shadow, one page at a time. Page transitions animate the whole scene, regardless of the lyric-effects target; the icon and branding stay still. The first page uses its entrance effect; later pages use the page transition instead of entrance / exit effects. Cue times stay unchanged and short cues shorten the transition. Minimal-motion mode uses a crossfade.</small>
             <label>Mood preset
                 <select id="moodPreset">
                     <option value="custom">Custom effects</option>
@@ -998,6 +1040,15 @@
     let socialRun = 0;
     let activeSocialCue = null;
     let socialMediaGeneration = 0;
+    let socialPageOverlay = null;
+    let socialPageTransitionIndex = 0;
+    const SOCIAL_PAGE_EFFECTS = [
+        'book-forward','book-backward','page-lift','crossfade',
+        'wipe-left','wipe-right','wipe-up','wipe-down',
+        'push-left','push-right','push-up','push-down',
+        'zoom-through','zoom-retreat','iris','diamond','curtain',
+        'diagonal','blinds','checker','tilt','blur'
+    ];
     const extraEntrances = {
         stardust: 'Starry appear', 'heart-shower': 'Hearts shower', 'petal-drift': 'Petals drift',
         confetti: 'Confetti celebration', 'word-rise': 'Word-by-word rise', karaoke: 'Word spotlight',
@@ -1461,7 +1512,166 @@
         target.animate(frames,{duration,easing:'ease-in-out',fill:'both',direction:exiting ? 'reverse' : 'normal'});
     }
 
-    function renderSocialCue(cue, duration) {
+    function clearSocialPageTransition() {
+        if (!socialPageOverlay) return;
+        socialPageOverlay.getAnimations({subtree:true}).forEach(animation => animation.cancel());
+        socialPageOverlay.remove();
+        socialPageOverlay = null;
+    }
+
+    function captureSocialPage() {
+        const area = document.getElementById('displayArea');
+        const portrait = document.body.classList.contains('portrait-mode');
+        const bounds = portrait ? document.getElementById('backgroundEffects').getBoundingClientRect()
+            : {left:0,top:0,width:innerWidth,height:innerHeight};
+        const snapshot = document.createElement('div');
+        snapshot.className = 'social-page-snapshot';
+        snapshot.style.backgroundColor = getComputedStyle(document.body).backgroundColor;
+        const image = document.getElementById('backgroundImage');
+        const video = document.getElementById('backgroundVideo');
+        const media = document.body.classList.contains('background-video-selected') ? video : image;
+        const mediaStyle = getComputedStyle(media);
+        if (mediaStyle.display !== 'none') {
+            const background = document.createElement('div');
+            background.style.cssText = 'position:absolute;inset:0;background-color:#000;';
+            background.style.opacity = mediaStyle.opacity;
+            if (media === image) {
+                background.style.backgroundImage = mediaStyle.backgroundImage;
+                background.style.backgroundSize = mediaStyle.backgroundSize;
+                background.style.backgroundPosition = mediaStyle.backgroundPosition;
+                background.style.backgroundRepeat = 'no-repeat';
+            } else if (video.readyState >= 2 && video.videoWidth) {
+                const frame = document.createElement('canvas');
+                frame.width = video.videoWidth;
+                frame.height = video.videoHeight;
+                frame.style.cssText = 'width:100%;height:100%;';
+                frame.style.objectFit = mediaStyle.objectFit;
+                frame.style.objectPosition = mediaStyle.objectPosition;
+                frame.getContext('2d').drawImage(video,0,0);
+                background.appendChild(frame);
+            }
+            snapshot.appendChild(background);
+        }
+        const container = area.querySelector('.sloka-container');
+        if (container) {
+            const rect = container.getBoundingClientRect();
+            const copy = container.cloneNode(true);
+            copy.querySelectorAll('.social-particles').forEach(layer => layer.remove());
+            copy.removeAttribute('id');
+            copy.querySelectorAll('[id]').forEach(element => element.removeAttribute('id'));
+            Object.assign(copy.style, {
+                position:'absolute',left:`${rect.left-bounds.left}px`,top:`${rect.top-bounds.top}px`,
+                width:`${rect.width}px`,height:`${rect.height}px`,maxWidth:'none',margin:'0',
+                opacity:'1',transform:'none',filter:'none',animation:'none',transition:'none',
+                fontSize:getComputedStyle(container).fontSize
+            });
+            snapshot.appendChild(copy);
+        }
+        return {snapshot,bounds};
+    }
+
+    function playSocialPageTransition(previous, seconds) {
+        clearSocialPageTransition();
+        const overlay = document.createElement('div');
+        overlay.className = 'social-page-transition';
+        overlay.setAttribute('aria-hidden','true');
+        const {bounds,snapshot} = previous;
+        Object.assign(overlay.style, {
+            left:`${bounds.left}px`,top:`${bounds.top}px`,
+            width:`${bounds.width}px`,height:`${bounds.height}px`
+        });
+        socialPageOverlay = overlay;
+        document.body.appendChild(overlay);
+        let effect = document.getElementById('socialPageTransition').value;
+        if (effect === 'cycle') effect = SOCIAL_PAGE_EFFECTS[socialPageTransitionIndex % SOCIAL_PAGE_EFFECTS.length];
+        if (effect === 'random') effect = SOCIAL_PAGE_EFFECTS[Math.floor(Math.random()*SOCIAL_PAGE_EFFECTS.length)];
+        socialPageTransitionIndex++;
+        if (useReducedSocialMotion()) effect = 'crossfade';
+        overlay.dataset.effect = effect;
+        const duration = Math.max(1,seconds*1000);
+        const options = {duration,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'};
+        const animate = (element,frames) => element.animate(frames,options);
+        let animation;
+        if (effect === 'book-forward' || effect === 'book-backward' || effect === 'page-lift') {
+            const leaf = document.createElement('div');
+            leaf.className = 'social-page-leaf';
+            const front = document.createElement('div');
+            front.className = 'social-page-face social-page-front';
+            const back = document.createElement('div');
+            back.className = 'social-page-face social-page-back';
+            const shade = document.createElement('div');
+            shade.className = 'social-page-shade';
+            const spine = document.createElement('div');
+            spine.className = 'social-page-spine';
+            front.append(snapshot,shade,spine);
+            leaf.append(front,back);
+            overlay.appendChild(leaf);
+            const backward = effect === 'book-backward';
+            const lift = effect === 'page-lift';
+            leaf.style.transformOrigin = lift ? 'center top' : backward ? 'right center' : 'left center';
+            if (backward) {
+                spine.style.left = 'auto';
+                spine.style.right = '0';
+            }
+            if (lift) back.style.transform = 'rotateX(180deg)';
+            animation = animate(leaf,[
+                {transform:lift ? 'rotateX(0deg)' : 'rotateY(0deg)',opacity:1},
+                {transform:lift ? 'rotateX(80deg)' : `rotateY(${backward ? 80 : -80}deg)`,opacity:1,offset:.55},
+                {transform:lift ? 'rotateX(170deg)' : `rotateY(${backward ? 170 : -170}deg)`,opacity:0}
+            ]);
+            animate(shade,[{opacity:0},{opacity:.85,offset:.55},{opacity:.2}]);
+        } else if (effect === 'blinds' || effect === 'checker') {
+            const rows = effect === 'blinds' ? 8 : 4;
+            const columns = effect === 'blinds' ? 1 : 4;
+            for (let row=0; row<rows; row++) {
+                for (let column=0; column<columns; column++) {
+                    // Keep each snapshot full-size so text never reflows inside a tile.
+                    const tile = document.createElement('div');
+                    tile.style.cssText = 'position:absolute;inset:0;';
+                    tile.style.clipPath = `inset(${row*100/rows}% ${100-(column+1)*100/columns}% ${100-(row+1)*100/rows}% ${column*100/columns}%)`;
+                    const copy = snapshot.cloneNode(true);
+                    copy.querySelectorAll('canvas').forEach((canvas,index) => canvas.getContext('2d').drawImage(snapshot.querySelectorAll('canvas')[index],0,0));
+                    tile.appendChild(copy);
+                    overlay.appendChild(tile);
+                    const delay = (row+column)/(rows+columns-2)*duration*.35;
+                    animation = tile.animate([{opacity:1},{opacity:0}],{...options,duration:duration-delay,delay});
+                }
+            }
+        } else {
+            overlay.appendChild(snapshot);
+            const frames = {
+                crossfade:[{opacity:1},{opacity:0}],
+                'wipe-left':[{clipPath:'inset(0 0 0 0)'},{clipPath:'inset(0 100% 0 0)'}],
+                'wipe-right':[{clipPath:'inset(0 0 0 0)'},{clipPath:'inset(0 0 0 100%)'}],
+                'wipe-up':[{clipPath:'inset(0 0 0 0)'},{clipPath:'inset(0 0 100% 0)'}],
+                'wipe-down':[{clipPath:'inset(0 0 0 0)'},{clipPath:'inset(100% 0 0 0)'}],
+                'push-left':[{transform:'translateX(0)'},{transform:'translateX(-100%)'}],
+                'push-right':[{transform:'translateX(0)'},{transform:'translateX(100%)'}],
+                'push-up':[{transform:'translateY(0)'},{transform:'translateY(-100%)'}],
+                'push-down':[{transform:'translateY(0)'},{transform:'translateY(100%)'}],
+                'zoom-through':[{opacity:1,transform:'scale(1)'},{opacity:0,transform:'scale(2.2)'}],
+                'zoom-retreat':[{opacity:1,transform:'scale(1)'},{opacity:0,transform:'scale(.25)'}],
+                iris:[{clipPath:'circle(0% at 50% 50%)'},{clipPath:'circle(150% at 50% 50%)'}],
+                diamond:[{clipPath:'polygon(50% 50%,50% 50%,50% 50%,50% 50%)'},{clipPath:'polygon(50% -100%,200% 50%,50% 200%,-100% 50%)'}],
+                curtain:[{clipPath:'inset(0 50%)'},{clipPath:'inset(0 0)'}],
+                diagonal:[{clipPath:'polygon(0 0,0 0,0 0)'},{clipPath:'polygon(0 0,200% 0,0 200%)'}],
+                tilt:[{opacity:1,transform:'perspective(1200px) rotateY(0deg)'},{opacity:0,transform:'perspective(1200px) rotateY(-80deg) scale(.8)'}],
+                blur:[{opacity:1,filter:'blur(0)'},{opacity:0,filter:'blur(24px)'}]
+            };
+            const reveal = ['iris','diamond','curtain','diagonal'].includes(effect);
+            if (reveal) {
+                // Reveal a second snapshot over the old page, not an already-visible live page.
+                const incoming = captureSocialPage().snapshot;
+                overlay.appendChild(incoming);
+                animation = animate(incoming,frames[effect]);
+            } else animation = animate(snapshot,frames[effect] || frames.crossfade);
+        }
+        animation.onfinish = () => {
+            if (socialPageOverlay === overlay) clearSocialPageTransition();
+        };
+    }
+
+    function renderSocialCue(cue, duration, pageTransition = false) {
         const area = document.getElementById('displayArea');
         area.getAnimations({subtree:true}).forEach(animation => animation.cancel());
         document.getElementById('backgroundStage').getAnimations({subtree:true}).forEach(animation => animation.cancel());
@@ -1470,6 +1680,7 @@
         activateSocialMedia(cue.scene);
         const effects = sceneEffects(cue.scene);
         if (!cue.text) {
+            if (pageTransition) return null;
             animateLyric(null,effects.entrance,Math.min(boundedNumber('entranceDuration',.8,.1,20),duration*.4)*1000,false,effects.scope);
             return null;
         }
@@ -1503,12 +1714,14 @@
         });
         applyLyricStyle(container,cue.scene);
         area.appendChild(container);
-        animateLyric(container,entrance,Math.min(boundedNumber('entranceDuration',.8,.1,20),duration*.4)*1000,false,effects.scope);
+        if (!pageTransition) animateLyric(container,entrance,Math.min(boundedNumber('entranceDuration',.8,.1,20),duration*.4)*1000,false,effects.scope);
         return container;
     }
 
     function startSocialSequence(text) {
         const timeline = buildSocialTimeline(text);
+        clearSocialPageTransition();
+        socialPageTransitionIndex = 0;
         document.getElementById('socialStatus').textContent = '';
         const area = document.getElementById('displayArea');
         area.style.fontFamily = '';
@@ -1535,14 +1748,20 @@
                 const cue = timeline.sequence[index];
                 const nextKey = `${loop}:${index}`;
                 const duration = cue.end-cue.start;
+                const pageTransition = document.getElementById('socialPageTransition').value !== 'none';
                 if (key !== nextKey) {
+                    clearSocialPageTransition();
+                    const previous = key && pageTransition ? captureSocialPage() : null;
                     key=nextKey;
                     activeSocialCue=cue;
                     exited=false;
-                    container=renderSocialCue(cue,duration);
+                    container=renderSocialCue(cue,duration,Boolean(previous));
+                    if (previous) playSocialPageTransition(previous,Math.min(
+                        boundedNumber('socialPageDuration',1.2,.2,4),(cue.end-position)*.45
+                    ));
                 }
                 const exitSeconds = Math.min(boundedNumber('exitDuration',.6,.1,20),duration*.4);
-                if (!exited && position >= cue.end-exitSeconds) {
+                if (!pageTransition && !exited && position >= cue.end-exitSeconds) {
                     exited=true;
                     if (container) container.getAnimations({subtree:true}).forEach(animation => animation.cancel());
                     container?.querySelectorAll('.social-particles').forEach(layer => layer.remove());
@@ -3706,6 +3925,7 @@
         socialMediaGeneration++;
         if (socialFrame !== null) cancelAnimationFrame(socialFrame);
         socialFrame = null;
+        clearSocialPageTransition();
         activeSocialCue = null;
         document.getElementById('displayArea').getAnimations({subtree:true}).forEach(animation => animation.cancel());
         document.getElementById('backgroundStage').getAnimations({subtree:true}).forEach(animation => animation.cancel());
